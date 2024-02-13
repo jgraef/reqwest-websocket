@@ -2,7 +2,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```
 //! # use reqwest::Client;
 //! # use reqwest_websocket::Message;
 //! # use futures_util::{TryStreamExt, SinkExt};

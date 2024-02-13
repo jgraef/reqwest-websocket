@@ -14,5 +14,5 @@ tracing = "0.1.40"
 tungstenite = { version = "0.21.0", default-features = false, features = ["handshake"] }
 
 [dev-dependencies]
-tokio = { version = "1.36.0", features = ["macros"] }
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 reqwest = { version = "0.11.24", features = ["default-tls"] }
