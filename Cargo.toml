@@ -10,4 +10,9 @@ futures-util = { version = "0.3.30", default-features = false }
 reqwest = { version = "0.11.24", default-features = false }
 thiserror = "1.0.57"
 tokio-util = { version = "0.7.10", default-features = false, features = ["compat"] }
+tracing = "0.1.40"
 tungstenite = { version = "0.21.0", default-features = false, features = ["handshake"] }
+
+[dev-dependencies]
+tokio = { version = "1.36.0", features = ["macros"] }
+reqwest = { version = "0.11.24", features = ["default-tls"] }

@@ -1,3 +1,37 @@
+//! Provides wrappers for [`reqwest`] to enable [websocket][1] connections.
+//!
+//! # Example
+//!
+//! ```rust
+//! # use reqwest::Client;
+//! # use reqwest_websocket::Message;
+//! # use futures_util::{TryStreamExt, SinkExt};
+//! # fn main() {
+//! # run(); // intentionally ignore the future. we only care that it compiles.
+//! # }
+//! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+//! use reqwest_websocket::RequestBuilderExt; // Extends the reqwest::RequestBuilder to allow websocket upgrades
+//!
+//! let response = Client::default().get("https://echo.websocket.org/") // don't use ws:// or wss://, but rather http:// or https://
+//!     .upgrade() // prepares the websocket upgrade.
+//!     .send().await?;
+//!
+//! let mut websocket = response.into_websocket().await?;
+//!
+//! websocket.send(Message::Text("Hello, World".into())).await?;
+//!
+//! while let Some(message) = websocket.try_next().await? {
+//!     match message {
+//!         Message::Text(text) => println!("{text}"),
+//!         _ => {}
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! [1]: https://en.wikipedia.org/wiki/WebSocket
+
 use std::{
     ops::Deref,
     pin::Pin,
@@ -94,30 +128,46 @@ impl Deref for UpgradeResponse {
 impl UpgradeResponse {
     pub async fn into_websocket(self) -> Result<WebSocket, Error> {
         let headers = self.inner.headers();
-        if self.inner.status() != StatusCode::SWITCHING_PROTOCOLS
-            || headers
-                .get(header::CONNECTION)
-                .map(|v| v == "upgrade")
-                .unwrap_or_default()
-            || headers
-                .get(header::UPGRADE)
-                .map(|v| v == "websocket")
-                .unwrap_or_default()
+
+        if self.inner.status() != StatusCode::SWITCHING_PROTOCOLS {
+            tracing::debug!(status_code = %self.inner.status(), "server responded with unexpected status code");
+            return Err(Error::HandshakeFailed);
+        }
+
+        if !headers
+            .get(header::CONNECTION)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.eq_ignore_ascii_case("upgrade"))
+            .unwrap_or_default()
         {
+            tracing::debug!("server responded with invalid Connection header");
+            return Err(Error::HandshakeFailed);
+        }
+
+        if !headers
+            .get(header::UPGRADE)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.eq_ignore_ascii_case("websocket"))
+            .unwrap_or_default()
+        {
+            tracing::debug!("server responded with invalid Upgrade header");
             return Err(Error::HandshakeFailed);
         }
 
         let accept = headers
             .get(header::SEC_WEBSOCKET_ACCEPT)
+            .and_then(|v| v.to_str().ok())
             .ok_or(Error::HandshakeFailed)?;
         let expected_accept = tungstenite::handshake::derive_accept_key(self.nonce.as_bytes());
-        if accept == &expected_accept {
+        if accept != &expected_accept {
+            tracing::debug!(got=?accept, expected=expected_accept, "server responded with invalid accept token");
             return Err(Error::HandshakeFailed);
         }
 
         let protocol = headers
             .get(header::SEC_WEBSOCKET_PROTOCOL)
-            .and_then(|v| v.to_str().ok().map(|s| s.to_owned()));
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_owned());
 
         let inner = WebSocketStream::from_raw_socket(
             self.inner.upgrade().await?.compat(),
@@ -166,5 +216,49 @@ impl Sink<Message> for WebSocket {
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_close_unpin(cx).map_err(Into::into)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::{
+        SinkExt,
+        TryStreamExt,
+    };
+    use reqwest::Client;
+    use tungstenite::Message;
+
+    use crate::RequestBuilderExt;
+
+    #[tokio::test]
+    async fn test_handshake() {
+        let mut websocket = Client::default()
+            .get("https://echo.websocket.org/")
+            .upgrade()
+            .send()
+            .await
+            .unwrap()
+            .into_websocket()
+            .await
+            .unwrap();
+
+        let text = "Hello, World!";
+        websocket
+            .send(Message::Text(text.to_owned()))
+            .await
+            .unwrap();
+
+        while let Some(message) = websocket.try_next().await.unwrap() {
+            match message {
+                Message::Text(s) => {
+                    if s == text {
+                        return;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        panic!("didn't receive text back")
     }
 }
