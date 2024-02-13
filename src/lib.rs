@@ -1,4 +1,4 @@
-//! Provides wrappers for [`reqwest`] to enable [websocket][1] connections.
+//! Provides wrappers for [`reqwest`][2] to enable [websocket][1] connections.
 //!
 //! # Example
 //!
@@ -10,16 +10,23 @@
 //! # run(); // intentionally ignore the future. we only care that it compiles.
 //! # }
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! use reqwest_websocket::RequestBuilderExt; // Extends the reqwest::RequestBuilder to allow websocket upgrades
+//! // Extends the reqwest::RequestBuilder to allow websocket upgrades
+//! use reqwest_websocket::RequestBuilderExt;
 //!
-//! let response = Client::default().get("https://echo.websocket.org/") // don't use ws:// or wss://, but rather http:// or https://
+//! // don't use `ws://` or `wss://` for the url, but rather `http://` or `https://`
+//! let response = Client::default()
+//!     .get("https://echo.websocket.org/")
 //!     .upgrade() // prepares the websocket upgrade.
-//!     .send().await?;
+//!     .send()
+//!     .await?;
 //!
+//! // turn the response into a websocket stream
 //! let mut websocket = response.into_websocket().await?;
 //!
+//! // the websocket implements `Sink<Message>`.
 //! websocket.send(Message::Text("Hello, World".into())).await?;
 //!
+//! // the websocket is also a `TryStream` over `Message`s.
 //! while let Some(message) = websocket.try_next().await? {
 //!     match message {
 //!         Message::Text(text) => println!("{text}"),
@@ -31,6 +38,7 @@
 //! ```
 //!
 //! [1]: https://en.wikipedia.org/wiki/WebSocket
+//! [2]: https://docs.rs/reqwest/latest/reqwest/index.html
 
 use std::{
     ops::Deref,
@@ -48,21 +56,21 @@ use futures_util::{
     Stream,
     StreamExt,
 };
-pub use reqwest::RequestBuilder;
 use reqwest::{
     header,
+    RequestBuilder,
     Response,
     StatusCode,
     Upgraded,
 };
-pub use tokio_util::compat::{
+use tokio_util::compat::{
     Compat,
     TokioAsyncReadCompatExt,
-    TokioAsyncWriteCompatExt,
 };
 use tungstenite::protocol::Role;
 pub use tungstenite::Message;
 
+/// Errors returned by `reqwest_websocket`
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("websocket upgrade failed")]
@@ -75,23 +83,30 @@ pub enum Error {
     Tungstenite(#[from] tungstenite::Error),
 }
 
+/// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
 pub trait RequestBuilderExt {
     fn upgrade(self) -> UpgradedRequestBuilder;
 }
 
 impl RequestBuilderExt for RequestBuilder {
+    /// Upgrades the [`RequestBuilder`] to peform a
+    /// websocket handshake. This returns a wrapped type, so you you must do
+    /// this after you setup your request, and just before you send the
+    /// request.
     fn upgrade(self) -> UpgradedRequestBuilder {
         UpgradedRequestBuilder::new(self)
     }
 }
 
+/// Wrapper for [`RequestBuilder`] that performs the
+/// websocket handshake when sent.
 pub struct UpgradedRequestBuilder {
     inner: RequestBuilder,
     nonce: String,
 }
 
 impl UpgradedRequestBuilder {
-    pub fn new(inner: RequestBuilder) -> Self {
+    fn new(inner: RequestBuilder) -> Self {
         let nonce = tungstenite::handshake::client::generate_key();
 
         let inner = inner
@@ -103,6 +118,7 @@ impl UpgradedRequestBuilder {
         Self { inner, nonce }
     }
 
+    /// Sends the request and returns and [`UpgradeResponse`].
     pub async fn send(self) -> Result<UpgradeResponse, Error> {
         let inner = self.inner.send().await?;
         Ok(UpgradeResponse {
@@ -112,6 +128,10 @@ impl UpgradedRequestBuilder {
     }
 }
 
+/// The server's response to the websocket upgrade request.
+///
+/// This implements `Deref<Target = Response>`, so you can access all the usual
+/// information from the [`Response`].
 pub struct UpgradeResponse {
     inner: Response,
     nonce: String,
@@ -126,6 +146,8 @@ impl Deref for UpgradeResponse {
 }
 
 impl UpgradeResponse {
+    /// Turns the response into a websocket. This checks if the websocket
+    /// handshake was successful.
     pub async fn into_websocket(self) -> Result<WebSocket, Error> {
         let headers = self.inner.headers();
 
@@ -180,6 +202,7 @@ impl UpgradeResponse {
     }
 }
 
+/// A websocket connection
 pub struct WebSocket {
     inner: WebSocketStream<Compat<Upgraded>>,
     protocol: Option<String>,
