@@ -181,7 +181,7 @@ impl UpgradeResponse {
             .and_then(|v| v.to_str().ok())
             .ok_or(Error::HandshakeFailed)?;
         let expected_accept = tungstenite::handshake::derive_accept_key(self.nonce.as_bytes());
-        if accept != &expected_accept {
+        if accept != expected_accept {
             tracing::debug!(got=?accept, expected=expected_accept, "server responded with invalid accept token");
             return Err(Error::HandshakeFailed);
         }
@@ -210,7 +210,7 @@ pub struct WebSocket {
 
 impl WebSocket {
     pub fn protocol(&self) -> Option<&str> {
-        self.protocol.as_ref().map(|s| s.as_str())
+        self.protocol.as_deref()
     }
 }
 
