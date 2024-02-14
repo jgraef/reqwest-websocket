@@ -1,5 +1,9 @@
 # `reqwest-websocket`
 
+[![crates.io](https://img.shields.io/crates/v/reqwest-websocket.svg)](https://crates.io/crates/reqwest-websocket)
+[![Documentation](https://docs.rs/reqwest-websocket/badge.svg)](https://docs.rs/reqwest-websocket)
+[![MIT](https://img.shields.io/crates/l/reqwest-websocket.svg)](./LICENSE)
+
 Provides wrappers for [`reqwest`][2] to enable [websocket][1] connections.
 
 ## Example
