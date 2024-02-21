@@ -13,9 +13,9 @@
 //! // Extends the reqwest::RequestBuilder to allow websocket upgrades
 //! use reqwest_websocket::RequestBuilderExt;
 //!
-//! // don't use `ws://` or `wss://` for the url, but rather `http://` or `https://`
+//! // create a GET request, upgrade it and send it.
 //! let response = Client::default()
-//!     .get("https://echo.websocket.org/")
+//!     .get("wss://echo.websocket.org/")
 //!     .upgrade() // prepares the websocket upgrade.
 //!     .send()
 //!     .await?;
@@ -54,7 +54,11 @@ use futures_util::{
     Stream,
     StreamExt,
 };
-use reqwest::RequestBuilder;
+use reqwest::{
+    Client,
+    IntoUrl,
+    RequestBuilder,
+};
 
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -84,14 +88,21 @@ pub enum Message {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, thiserror::Error)]
+#[error("could not convert message")]
+pub struct FromTungsteniteMessageError {
+    pub original: tungstenite::Message,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl TryFrom<tungstenite::Message> for Message {
-    type Error = ();
+    type Error = FromTungsteniteMessageError;
 
     fn try_from(value: tungstenite::Message) -> Result<Self, Self::Error> {
         match value {
             tungstenite::Message::Text(text) => Ok(Self::Text(text)),
             tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
-            _ => Err(()),
+            _ => Err(FromTungsteniteMessageError { original: value }),
         }
     }
 }
@@ -104,6 +115,20 @@ impl From<Message> for tungstenite::Message {
             Message::Binary(data) => Self::Binary(data),
         }
     }
+}
+
+/// Opens a websocket at the specified URL.
+///
+/// This is a shorthand for creating a request, sending it, and turning the
+/// response into a websocket.
+pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
+    Ok(Client::new()
+        .get(url)
+        .upgrade()
+        .send()
+        .await?
+        .into_websocket()
+        .await?)
 }
 
 /// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
@@ -141,7 +166,7 @@ impl UpgradedRequestBuilder {
                 .header(reqwest::header::CONNECTION, "upgrade")
                 .header(reqwest::header::UPGRADE, "websocket")
                 .header(reqwest::header::SEC_WEBSOCKET_KEY, &nonce)
-                .header(reqwest::header::SEC_WEBSOCKET_VERSION, "13"); // ??
+                .header(reqwest::header::SEC_WEBSOCKET_VERSION, "13");
 
             (nonce, inner)
         };
@@ -157,7 +182,26 @@ impl UpgradedRequestBuilder {
     /// Sends the request and returns and [`UpgradeResponse`].
     pub async fn send(self) -> Result<UpgradeResponse, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let inner = self.inner.send().await?;
+        let inner = {
+            let (client, request_result) = self.inner.build_split();
+            let mut request = request_result?;
+
+            // change the scheme from wss? to https?
+            let url = request.url_mut();
+            match url.scheme() {
+                "ws" => {
+                    url.set_scheme("http")
+                        .expect("url should accept http scheme")
+                }
+                "wss" => {
+                    url.set_scheme("https")
+                        .expect("url should accept https scheme")
+                }
+                _ => {}
+            }
+
+            client.execute(request).await?
+        };
 
         #[cfg(target_arch = "wasm32")]
         let inner = wasm::WebSysWebSocketStream::new(self.inner.build()?, &self.protocols).await?;
@@ -318,7 +362,10 @@ impl Stream for WebSocket {
                 Poll::Ready(Some(Ok(message))) => {
                     match message.try_into() {
                         Ok(message) => return Poll::Ready(Some(Ok(message))),
-                        Err(_) => {}
+                        Err(_) => {
+                            // this won't convert pings, pongs, etc. but we
+                            // don't care about those.
+                        }
                     }
                 }
             }
@@ -358,19 +405,12 @@ mod tests {
         Message,
         RequestBuilderExt,
     };
+    use crate::{
+        websocket,
+        WebSocket,
+    };
 
-    #[tokio::test]
-    async fn test_handshake() {
-        let mut websocket = Client::default()
-            .get("https://echo.websocket.org/")
-            .upgrade()
-            .send()
-            .await
-            .unwrap()
-            .into_websocket()
-            .await
-            .unwrap();
-
+    async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
         websocket
             .send(Message::Text(text.to_owned()))
@@ -388,6 +428,34 @@ mod tests {
             }
         }
 
-        panic!("didn't receive text back")
+        panic!("didn't receive text back");
+    }
+
+    #[tokio::test]
+    async fn test_with_request_builder() {
+        let websocket = Client::default()
+            .get("https://echo.websocket.org/")
+            .upgrade()
+            .send()
+            .await
+            .unwrap()
+            .into_websocket()
+            .await
+            .unwrap();
+
+        test_websocket(websocket).await;
+    }
+
+    #[tokio::test]
+    async fn test_shorthand() {
+        let websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        test_websocket(websocket).await;
+    }
+
+    #[tokio::test]
+    async fn test_with_ws_scheme() {
+        let websocket = websocket("wss://echo.websocket.org/").await.unwrap();
+
+        test_websocket(websocket).await;
     }
 }

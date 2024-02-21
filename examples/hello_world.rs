@@ -14,7 +14,7 @@ use reqwest_websocket::{
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let websocket = Client::default()
-        .get("https://echo.websocket.org/")
+        .get("wss://echo.websocket.org/")
         .upgrade()
         .send()
         .await?
