@@ -6,8 +6,8 @@
 
 Extension for [`reqwest`][2] to allow [websocket][1] connections.
 
-This crate contains the extension trait [`ReqwestBuilderExt`][4] which adds an `upgrade` method to `reqwest::ReqwestBuilder` that will prepare the HTTP request
-to upgrade the connection to WebSocket. After you call `upgrade()`, you can send your upgraded reqwest like usual with `send()` which will return an `UpgradeResponse`. The `UpgradeResponse` wraps `reqwest::Response` (and also dereferences to it), so you can inspect the response if you need to. Finally you can
+This crate contains the extension trait [`RequestBuilderExt`][4] which adds an `upgrade` method to `reqwest::ReqestBuilder` that will prepare the HTTP request
+to upgrade the connection to a WebSocket. After you call `upgrade()`, you can send your upgraded request like usual with `send()` which will return an `UpgradeResponse`. The `UpgradeResponse` wraps `reqwest::Response` (and also dereferences to it), so you can inspect the response if you need to. Finally you can
 use `into_websocket()` on the response to turn it into a async stream and sink for messages. Both text and binary messages are supported.
 
 ## Example
