@@ -60,14 +60,17 @@ use reqwest::{
     RequestBuilder,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+mod native;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
 /// Errors returned by `reqwest_websocket`
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("websocket upgrade failed")]
-    HandshakeFailed,
+    Handshake(#[from] native::HandshakeError),
 
     #[error("reqwest error")]
     Reqwest(#[from] reqwest::Error),
@@ -122,7 +125,9 @@ impl From<Message> for tungstenite::Message {
 /// This is a shorthand for creating a request, sending it, and turning the
 /// response into a websocket.
 pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
-    Ok(Client::new()
+    Ok(Client::builder()
+        .http1_only()
+        .build()?
         .get(url)
         .upgrade()
         .send()
@@ -150,31 +155,13 @@ impl RequestBuilderExt for RequestBuilder {
 /// websocket handshake when sent.
 pub struct UpgradedRequestBuilder {
     inner: RequestBuilder,
-
-    #[cfg(not(target_arch = "wasm32"))]
-    nonce: String,
-
     protocols: Vec<String>,
 }
 
 impl UpgradedRequestBuilder {
     pub(crate) fn new(inner: RequestBuilder) -> Self {
-        #[cfg(not(target_arch = "wasm32"))]
-        let (nonce, inner) = {
-            let nonce = tungstenite::handshake::client::generate_key();
-            let inner = inner
-                .header(reqwest::header::CONNECTION, "upgrade")
-                .header(reqwest::header::UPGRADE, "websocket")
-                .header(reqwest::header::SEC_WEBSOCKET_KEY, &nonce)
-                .header(reqwest::header::SEC_WEBSOCKET_VERSION, "13");
-
-            (nonce, inner)
-        };
-
         Self {
             inner,
-            #[cfg(not(target_arch = "wasm32"))]
-            nonce,
             protocols: vec![],
         }
     }
@@ -182,34 +169,13 @@ impl UpgradedRequestBuilder {
     /// Sends the request and returns and [`UpgradeResponse`].
     pub async fn send(self) -> Result<UpgradeResponse, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let inner = {
-            let (client, request_result) = self.inner.build_split();
-            let mut request = request_result?;
-
-            // change the scheme from wss? to https?
-            let url = request.url_mut();
-            match url.scheme() {
-                "ws" => {
-                    url.set_scheme("http")
-                        .expect("url should accept http scheme")
-                }
-                "wss" => {
-                    url.set_scheme("https")
-                        .expect("url should accept https scheme")
-                }
-                _ => {}
-            }
-
-            client.execute(request).await?
-        };
+        let inner = native::send_request(self.inner).await?;
 
         #[cfg(target_arch = "wasm32")]
         let inner = wasm::WebSysWebSocketStream::new(self.inner.build()?, &self.protocols).await?;
 
         Ok(UpgradeResponse {
             inner,
-            #[cfg(not(target_arch = "wasm32"))]
-            nonce: self.nonce,
             protocols: self.protocols,
         })
     }
@@ -221,13 +187,10 @@ impl UpgradedRequestBuilder {
 /// information from the [`Response`].
 pub struct UpgradeResponse {
     #[cfg(not(target_arch = "wasm32"))]
-    inner: reqwest::Response,
+    inner: native::WebSocketResponse,
 
     #[cfg(target_arch = "wasm32")]
     inner: wasm::WebSysWebSocketStream,
-
-    #[cfg(not(target_arch = "wasm32"))]
-    nonce: String,
 
     #[allow(dead_code)]
     protocols: Vec<String>,
@@ -238,7 +201,7 @@ impl std::ops::Deref for UpgradeResponse {
     type Target = reqwest::Response;
 
     fn deref(&self) -> &Self::Target {
-        &self.inner
+        &self.inner.response
     }
 }
 
@@ -247,81 +210,7 @@ impl UpgradeResponse {
     /// handshake was successful.
     pub async fn into_websocket(self) -> Result<WebSocket, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let (inner, protocol) = {
-            let headers = self.inner.headers();
-
-            if self.inner.status() != reqwest::StatusCode::SWITCHING_PROTOCOLS {
-                tracing::debug!(status_code = %self.inner.status(), "server responded with unexpected status code");
-                return Err(Error::HandshakeFailed);
-            }
-
-            if !headers
-                .get(reqwest::header::CONNECTION)
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.eq_ignore_ascii_case("upgrade"))
-                .unwrap_or_default()
-            {
-                tracing::debug!("server responded with invalid Connection header");
-                return Err(Error::HandshakeFailed);
-            }
-
-            if !headers
-                .get(reqwest::header::UPGRADE)
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.eq_ignore_ascii_case("websocket"))
-                .unwrap_or_default()
-            {
-                tracing::debug!("server responded with invalid Upgrade header");
-                return Err(Error::HandshakeFailed);
-            }
-
-            let accept = headers
-                .get(reqwest::header::SEC_WEBSOCKET_ACCEPT)
-                .and_then(|v| v.to_str().ok())
-                .ok_or(Error::HandshakeFailed)?;
-            let expected_accept = tungstenite::handshake::derive_accept_key(self.nonce.as_bytes());
-            if accept != expected_accept {
-                tracing::debug!(got=?accept, expected=expected_accept, "server responded with invalid accept token");
-                return Err(Error::HandshakeFailed);
-            }
-
-            let protocol = headers
-                .get(reqwest::header::SEC_WEBSOCKET_PROTOCOL)
-                .and_then(|v| v.to_str().ok())
-                .map(|s| s.to_owned());
-
-            match (self.protocols.is_empty(), &protocol) {
-                (true, None) => {
-                    // we didn't request any protocols, so we don't expect one
-                    // in return
-                }
-                (false, None) => {
-                    // server didn't reply with a protocol
-                    return Err(Error::HandshakeFailed);
-                }
-                (false, Some(protocol)) => {
-                    if !self.protocols.contains(protocol) {
-                        // the responded protocol is none which we requested
-                        return Err(Error::HandshakeFailed);
-                    }
-                }
-                (true, Some(_)) => {
-                    // we didn't request any protocols but got one anyway
-                    return Err(Error::HandshakeFailed);
-                }
-            }
-
-            use tokio_util::compat::TokioAsyncReadCompatExt;
-
-            let inner = async_tungstenite::WebSocketStream::from_raw_socket(
-                self.inner.upgrade().await?.compat(),
-                tungstenite::protocol::Role::Client,
-                None,
-            )
-            .await;
-
-            (inner, protocol)
-        };
+        let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols).await?;
 
         #[cfg(target_arch = "wasm32")]
         let (inner, protocol) = {
@@ -336,7 +225,7 @@ impl UpgradeResponse {
 /// A websocket connection
 pub struct WebSocket {
     #[cfg(not(target_arch = "wasm32"))]
-    inner: async_tungstenite::WebSocketStream<tokio_util::compat::Compat<reqwest::Upgraded>>,
+    inner: native::WebSocketStream,
 
     #[cfg(target_arch = "wasm32")]
     inner: wasm::WebSysWebSocketStream,
