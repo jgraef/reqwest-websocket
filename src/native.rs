@@ -11,7 +11,7 @@ use reqwest::{
     Version,
 };
 
-use crate::Error;
+use crate::{Error, Message};
 
 pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
     let (client, request_result) = request_builder.build_split();
@@ -251,3 +251,32 @@ impl WebSocketResponse {
         Ok((inner, protocol))
     }
 }
+
+
+#[derive(Debug, thiserror::Error)]
+#[error("could not convert message")]
+pub struct FromTungsteniteMessageError {
+    pub original: tungstenite::Message,
+}
+
+impl TryFrom<tungstenite::Message> for Message {
+    type Error = FromTungsteniteMessageError;
+
+    fn try_from(value: tungstenite::Message) -> Result<Self, Self::Error> {
+        match value {
+            tungstenite::Message::Text(text) => Ok(Self::Text(text)),
+            tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
+            _ => Err(FromTungsteniteMessageError { original: value }),
+        }
+    }
+}
+
+impl From<Message> for tungstenite::Message {
+    fn from(value: Message) -> Self {
+        match value {
+            Message::Text(text) => Self::Text(text),
+            Message::Binary(data) => Self::Binary(data),
+        }
+    }
+}
+

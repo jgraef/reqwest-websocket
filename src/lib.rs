@@ -65,6 +65,9 @@ mod native;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use native::HandshakeError;
+
 /// Errors returned by `reqwest_websocket`
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -88,36 +91,6 @@ pub enum Error {
 pub enum Message {
     Text(String),
     Binary(Vec<u8>),
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, thiserror::Error)]
-#[error("could not convert message")]
-pub struct FromTungsteniteMessageError {
-    pub original: tungstenite::Message,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl TryFrom<tungstenite::Message> for Message {
-    type Error = FromTungsteniteMessageError;
-
-    fn try_from(value: tungstenite::Message) -> Result<Self, Self::Error> {
-        match value {
-            tungstenite::Message::Text(text) => Ok(Self::Text(text)),
-            tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
-            _ => Err(FromTungsteniteMessageError { original: value }),
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl From<Message> for tungstenite::Message {
-    fn from(value: Message) -> Self {
-        match value {
-            Message::Text(text) => Self::Text(text),
-            Message::Binary(data) => Self::Binary(data),
-        }
-    }
 }
 
 /// Opens a websocket at the specified URL.
