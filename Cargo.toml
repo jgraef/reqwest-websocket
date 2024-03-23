@@ -9,22 +9,33 @@ homepage = "https://github.com/jgraef/reqwest-websocket"
 repository = "https://github.com/jgraef/reqwest-websocket"
 license = "MIT"
 keywords = ["websocket", "reqwest", "stream"]
-categories = ["network-programming", "web-programming::http-client", "web-programming::websocket"]
+categories = [
+    "network-programming",
+    "web-programming::http-client",
+    "web-programming::websocket",
+]
 
 [dependencies]
 futures-util = { version = "0.3", default-features = false }
-reqwest = { version = "0.11", default-features = false }
+reqwest = { version = "0.12.0", default-features = false }
 thiserror = "1"
-tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
+tokio-util = { version = "0.7", default-features = false, features = [
+    "compat",
+] }
 tracing = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-tungstenite = { version = "0.25", default-features = false }
-tungstenite = { version = "0.21", default-features = false, features = ["handshake"] }
+tungstenite = { version = "0.21", default-features = false, features = [
+    "handshake",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["WebSocket"] }
-tokio = { version = "1", default-features = false, features = ["sync", "macros"] }
+tokio = { version = "1", default-features = false, features = [
+    "sync",
+    "macros",
+] }
 #tokio_stream = "0.1.14"
 #serde-wasm-bindgen = "0.6.3"
 
