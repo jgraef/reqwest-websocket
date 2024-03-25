@@ -193,6 +193,11 @@ impl UpgradeResponse {
 
         Ok(WebSocket { inner, protocol })
     }
+
+    /// Consumes the response and returns the inner [`reqwest::Response`].
+    pub fn into_inner(self) -> reqwest::Response {
+        self.inner.response
+    }
 }
 
 /// A websocket connection
