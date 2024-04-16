@@ -56,6 +56,7 @@ use futures_util::{
 };
 use reqwest::{
     Client,
+    ClientBuilder,
     IntoUrl,
     RequestBuilder,
 };
@@ -98,8 +99,8 @@ pub enum Message {
 /// This is a shorthand for creating a request, sending it, and turning the
 /// response into a websocket.
 pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
-    Ok(Client::builder()
-        .http1_only()
+    let builder = builder_http1_only(Client::builder());
+    Ok(builder
         .build()?
         .get(url)
         .upgrade()
@@ -107,6 +108,16 @@ pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
         .await?
         .into_websocket()
         .await?)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
+    builder.http1_only()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
+    builder
 }
 
 /// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
@@ -195,6 +206,7 @@ impl UpgradeResponse {
     }
 
     /// Consumes the response and returns the inner [`reqwest::Response`].
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn into_inner(self) -> reqwest::Response {
         self.inner.response
     }
