@@ -11,7 +11,10 @@ use reqwest::{
     Version,
 };
 
-use crate::{Error, Message};
+use crate::{
+    Error,
+    Message,
+};
 
 pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
     let (client, request_result) = request_builder.build_split();
@@ -252,7 +255,6 @@ impl WebSocketResponse {
     }
 }
 
-
 #[derive(Debug, thiserror::Error)]
 #[error("could not convert message")]
 pub struct FromTungsteniteMessageError {
@@ -279,4 +281,3 @@ impl From<Message> for tungstenite::Message {
         }
     }
 }
-
