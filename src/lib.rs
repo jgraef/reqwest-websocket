@@ -88,6 +88,7 @@ pub enum Error {
     WebSys(#[from] wasm::WebSysError),
 }
 
+/// A websocket message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
     Text(String),
@@ -150,7 +151,7 @@ impl UpgradedRequestBuilder {
         }
     }
 
-    /// Sends the request and returns and [`UpgradeResponse`].
+    /// Sends the request and returns an [`UpgradeResponse`].
     pub async fn send(self) -> Result<UpgradeResponse, Error> {
         #[cfg(not(target_arch = "wasm32"))]
         let inner = native::send_request(self.inner).await?;
@@ -167,8 +168,8 @@ impl UpgradedRequestBuilder {
 
 /// The server's response to the websocket upgrade request.
 ///
-/// This implements `Deref<Target = Response>`, so you can access all the usual
-/// information from the [`Response`].
+/// On non-wasm platforms, this implements `Deref<Target = Response>`, so you can access all the usual
+/// information from the [`reqwest::Response`].
 pub struct UpgradeResponse {
     #[cfg(not(target_arch = "wasm32"))]
     inner: native::WebSocketResponse,

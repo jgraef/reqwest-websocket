@@ -82,6 +82,7 @@ pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketRe
 pub type WebSocketStream =
     async_tungstenite::WebSocketStream<tokio_util::compat::Compat<reqwest::Upgraded>>;
 
+/// Error during Websocket handshake
 #[derive(Debug, thiserror::Error)]
 pub enum HandshakeError {
     #[error("unsupported http version: {0:?}")]
