@@ -93,6 +93,10 @@ pub enum Error {
 pub enum Message {
     Text(String),
     Binary(Vec<u8>),
+    #[cfg(not(target_arch = "wasm32"))]
+    Ping(Vec<u8>),
+    #[cfg(not(target_arch = "wasm32"))]
+    Pong(Vec<u8>),
 }
 
 /// Opens a websocket at the specified URL.

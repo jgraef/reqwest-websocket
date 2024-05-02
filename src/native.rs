@@ -269,6 +269,8 @@ impl TryFrom<tungstenite::Message> for Message {
         match value {
             tungstenite::Message::Text(text) => Ok(Self::Text(text)),
             tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
+            tungstenite::Message::Ping(data) => Ok(Self::Ping(data)),
+            tungstenite::Message::Pong(data) => Ok(Self::Pong(data)),
             _ => Err(FromTungsteniteMessageError { original: value }),
         }
     }
@@ -279,6 +281,8 @@ impl From<Message> for tungstenite::Message {
         match value {
             Message::Text(text) => Self::Text(text),
             Message::Binary(data) => Self::Binary(data),
+            Message::Ping(text) => Self::Ping(text),
+            Message::Pong(data) => Self::Pong(data),
         }
     }
 }
