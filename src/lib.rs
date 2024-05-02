@@ -228,6 +228,34 @@ impl WebSocket {
     pub fn protocol(&self) -> Option<&str> {
         self.protocol.as_deref()
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn close_with_code(&mut self, code: u16) -> Result<(), Error> {
+        self.close_with_code_and_reason(code, "").await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn close_with_code_and_reason(&mut self, code: u16, reason: &str) -> Result<(), Error> {
+        self.inner
+            .close(Some(tungstenite::protocol::CloseFrame {
+                code: code.into(),
+                reason: reason.into(),
+            }))
+            .await
+            .map_err(Error::Tungstenite)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn close_with_code(&mut self, code: u16) -> Result<(), Error> {
+        self.inner.close_with_code(code).map_err(Error::WebSys)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn close_with_code_and_reason(&mut self, code: u16, reason: &str) -> Result<(), Error> {
+        self.inner
+            .close_with_code_and_reason(code, reason)
+            .map_err(Error::WebSys)
+    }
 }
 
 impl Stream for WebSocket {
