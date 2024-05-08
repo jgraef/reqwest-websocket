@@ -36,7 +36,10 @@ use web_sys::{
     MessageEvent,
 };
 
-use crate::Message;
+use crate::protocol::{
+    CloseCode,
+    Message,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebSysError {
@@ -212,6 +215,11 @@ impl WebSysWebSocketStream {
 
     pub fn protocol(&self) -> String {
         self.inner.protocol()
+    }
+
+    pub fn close(self, code: CloseCode, reason: &str) -> Result<(), WebSysError> {
+        self.inner.close_with_code_and_reason(code.into(), reason)?;
+        Ok(())
     }
 }
 

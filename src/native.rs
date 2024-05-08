@@ -12,8 +12,11 @@ use reqwest::{
 };
 
 use crate::{
+    protocol::{
+        CloseCode,
+        Message,
+    },
     Error,
-    Message,
 };
 
 pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
@@ -280,5 +283,17 @@ impl From<Message> for tungstenite::Message {
             Message::Text(text) => Self::Text(text),
             Message::Binary(data) => Self::Binary(data),
         }
+    }
+}
+
+impl From<tungstenite::protocol::frame::coding::CloseCode> for CloseCode {
+    fn from(value: tungstenite::protocol::frame::coding::CloseCode) -> Self {
+        u16::from(value).into()
+    }
+}
+
+impl From<CloseCode> for tungstenite::protocol::frame::coding::CloseCode {
+    fn from(value: CloseCode) -> Self {
+        u16::from(value).into()
     }
 }

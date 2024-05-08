@@ -40,6 +40,12 @@
 //! [1]: https://en.wikipedia.org/wiki/WebSocket
 //! [2]: https://docs.rs/reqwest/latest/reqwest/index.html
 
+#[cfg(not(target_arch = "wasm32"))]
+mod native;
+mod protocol;
+#[cfg(target_arch = "wasm32")]
+mod wasm;
+
 use std::{
     pin::Pin,
     task::{
@@ -54,20 +60,18 @@ use futures_util::{
     Stream,
     StreamExt,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use native::HandshakeError;
+pub use protocol::{
+    CloseCode,
+    Message,
+};
 use reqwest::{
     Client,
     ClientBuilder,
     IntoUrl,
     RequestBuilder,
 };
-
-#[cfg(not(target_arch = "wasm32"))]
-mod native;
-#[cfg(target_arch = "wasm32")]
-mod wasm;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use native::HandshakeError;
 
 /// Errors returned by `reqwest_websocket`
 #[derive(Debug, thiserror::Error)]
@@ -86,13 +90,6 @@ pub enum Error {
     #[cfg(target_arch = "wasm32")]
     #[error("web_sys error")]
     WebSys(#[from] wasm::WebSysError),
-}
-
-/// A websocket message, which can be a text string or binary data.
-#[derive(Clone, Debug)]
-pub enum Message {
-    Text(String),
-    Binary(Vec<u8>),
 }
 
 /// Opens a websocket at the specified URL.
@@ -168,8 +165,8 @@ impl UpgradedRequestBuilder {
 
 /// The server's response to the websocket upgrade request.
 ///
-/// On non-wasm platforms, this implements `Deref<Target = Response>`, so you can access all the usual
-/// information from the [`reqwest::Response`].
+/// On non-wasm platforms, this implements `Deref<Target = Response>`, so you
+/// can access all the usual information from the [`reqwest::Response`].
 pub struct UpgradeResponse {
     #[cfg(not(target_arch = "wasm32"))]
     inner: native::WebSocketResponse,
@@ -229,32 +226,22 @@ impl WebSocket {
         self.protocol.as_deref()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn close_with_code(&mut self, code: u16) -> Result<(), Error> {
-        self.close_with_code_and_reason(code, "").await
-    }
+    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut inner = self.inner;
+            inner
+                .close(Some(tungstenite::protocol::CloseFrame {
+                    code: code.into(),
+                    reason: reason.unwrap_or_default().into(),
+                }))
+                .await?;
+        }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn close_with_code_and_reason(&mut self, code: u16, reason: &str) -> Result<(), Error> {
-        self.inner
-            .close(Some(tungstenite::protocol::CloseFrame {
-                code: code.into(),
-                reason: reason.into(),
-            }))
-            .await
-            .map_err(Error::Tungstenite)
-    }
+        #[cfg(target_arch = "wasm32")]
+        self.inner.close(code.into(), reason.unwrap_or_default())?;
 
-    #[cfg(target_arch = "wasm32")]
-    pub async fn close_with_code(&mut self, code: u16) -> Result<(), Error> {
-        self.inner.close_with_code(code).map_err(Error::WebSys)
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub async fn close_with_code_and_reason(&mut self, code: u16, reason: &str) -> Result<(), Error> {
-        self.inner
-            .close_with_code_and_reason(code, reason)
-            .map_err(Error::WebSys)
+        Ok(())
     }
 }
 
@@ -310,11 +297,10 @@ mod tests {
     use reqwest::Client;
 
     use super::{
+        websocket,
+        CloseCode,
         Message,
         RequestBuilderExt,
-    };
-    use crate::{
-        websocket,
         WebSocket,
     };
 
@@ -365,5 +351,25 @@ mod tests {
         let websocket = websocket("wss://echo.websocket.org/").await.unwrap();
 
         test_websocket(websocket).await;
+    }
+
+    #[tokio::test]
+    async fn test_close() {
+        let websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        websocket.close(CloseCode::Protocol, Some("test")).await.expect("close returned an error");
+    }
+
+    #[test]
+    fn closecode_from_u16() {
+        let byte = 1008u16;
+        assert_eq!(CloseCode::from(byte), CloseCode::Policy);
+    }
+
+    #[test]
+    fn closecode_into_u16() {
+        let text = CloseCode::Away;
+        let byte: u16 = text.into();
+        assert_eq!(byte, 1001u16);
+        assert_eq!(u16::from(text), 1001u16);
     }
 }
