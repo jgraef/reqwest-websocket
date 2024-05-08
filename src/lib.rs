@@ -222,10 +222,12 @@ pub struct WebSocket {
 }
 
 impl WebSocket {
+    /// Returns the protocol negotiated during the handshake.
     pub fn protocol(&self) -> Option<&str> {
         self.protocol.as_deref()
     }
 
+    /// Closes the connection with a given code and (optional) reason.
     pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
         #[cfg(not(target_arch = "wasm32"))]
         {
