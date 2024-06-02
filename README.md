@@ -6,9 +6,14 @@
 
 Extension for [`reqwest`][2] to allow [websocket][1] connections.
 
-This crate contains the extension trait [`RequestBuilderExt`][4] which adds an `upgrade` method to `reqwest::ReqestBuilder` that will prepare the HTTP request
-to upgrade the connection to a WebSocket. After you call `upgrade()`, you can send your upgraded request like usual with `send()` which will return an `UpgradeResponse`. The `UpgradeResponse` wraps `reqwest::Response` (and also dereferences to it), so you can inspect the response if you need to. Finally you can
-use `into_websocket()` on the response to turn it into a async stream and sink for messages. Both text and binary messages are supported.
+This crate contains the extension trait [`RequestBuilderExt`][4], which adds an
+`upgrade` method to `reqwest::RequestBuilder` that prepares the HTTP request to
+upgrade the connection to a WebSocket. After you call `upgrade()`, you can send
+your upgraded request as usual with `send()`, which will return an
+`UpgradeResponse`. The `UpgradeResponse` wraps `reqwest::Response` (and also
+dereferences to it), so you can inspect the response if needed. Finally, you can
+use `into_websocket()` on the response to turn it into an async stream and sink
+for messages. Both text and binary messages are supported.
 
 ## Example
 
@@ -42,8 +47,11 @@ while let Some(message) = websocket.try_next().await? {
 
 ## Support for WebAssembly
 
-`reqwest-websocket` uses the HTTP upgrade functionality built in in `reqwest`, which is not available on WebAssembly.
-When you use `reqwest-websocket` in WebAssembly, it falls back to using [`web_sys::WebSocket`][3]. That means that everything except URL (including query parameters) is not used for your request.
+`reqwest-websocket` uses the HTTP upgrade functionality built into `reqwest`,
+which is not available on WebAssembly. When you use `reqwest-websocket` in
+WebAssembly, it falls back to using [`web_sys::WebSocket`][3]. This means that
+everything except the URL (including query parameters) is not used for your
+request.
 
 [1]: https://en.wikipedia.org/wiki/WebSocket
 [2]: https://docs.rs/reqwest/latest/reqwest/index.html

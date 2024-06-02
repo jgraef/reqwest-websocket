@@ -1,36 +1,41 @@
-//! Provides wrappers for [`reqwest`][2] to enable [websocket][1] connections.
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+//! Provides wrappers for [`reqwest`][2] to enable [`WebSocket`][1] connections.
 //!
 //! # Example
 //!
 //! ```
 //! # use reqwest::Client;
-//! # use reqwest_websocket::Message;
+//! # use reqwest_websocket::{Message, Result};
 //! # use futures_util::{TryStreamExt, SinkExt};
+//! #
 //! # fn main() {
-//! # run(); // intentionally ignore the future. we only care that it compiles.
+//! #     // Intentionally ignore the future. We only care that it compiles.
+//! #     let _ = run();
 //! # }
-//! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! // Extends the reqwest::RequestBuilder to allow websocket upgrades
+//! #
+//! # async fn run() -> Result<()> {
+//! // Extends the `reqwest::RequestBuilder` to allow WebSocket upgrades.
 //! use reqwest_websocket::RequestBuilderExt;
 //!
-//! // create a GET request, upgrade it and send it.
+//! // Creates a GET request, upgrades and sends it.
 //! let response = Client::default()
 //!     .get("wss://echo.websocket.org/")
-//!     .upgrade() // prepares the websocket upgrade.
+//!     .upgrade() // Prepares the WebSocket upgrade.
 //!     .send()
 //!     .await?;
 //!
-//! // turn the response into a websocket stream
+//! // Turns the response into a WebSocket stream.
 //! let mut websocket = response.into_websocket().await?;
 //!
-//! // the websocket implements `Sink<Message>`.
+//! // The WebSocket implements `Sink<Message>`.
 //! websocket.send(Message::Text("Hello, World".into())).await?;
 //!
-//! // the websocket is also a `TryStream` over `Message`s.
+//! // The WebSocket is also a `TryStream` over `Message`s.
 //! while let Some(message) = websocket.try_next().await? {
-//!     match message {
-//!         Message::Text(text) => println!("{text}"),
-//!         _ => {}
+//!     if let Message::Text(text) = message {
+//!         println!("received: {text}")
 //!     }
 //! }
 //! # Ok(())
@@ -73,12 +78,12 @@ use reqwest::{
     RequestBuilder,
 };
 
-/// Errors returned by `reqwest_websocket`
+/// Errors returned by `reqwest_websocket`.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[cfg(not(target_arch = "wasm32"))]
     #[error("websocket upgrade failed")]
-    Handshake(#[from] native::HandshakeError),
+    Handshake(#[from] HandshakeError),
 
     #[error("reqwest error")]
     Reqwest(#[from] reqwest::Error),
@@ -90,15 +95,27 @@ pub enum Error {
     #[cfg(target_arch = "wasm32")]
     #[error("web_sys error")]
     WebSys(#[from] wasm::WebSysError),
+
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    #[error("serde_json error")]
+    Json(#[from] serde_json::Error),
 }
 
-/// Opens a websocket at the specified URL.
+/// Specialized [`Result`] type for the `WebSocket` messaging.
 ///
-/// This is a shorthand for creating a request, sending it, and turning the
-/// response into a websocket.
-pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
-    let builder = builder_http1_only(Client::builder());
-    Ok(builder
+/// [`Result`]: std::result::Result
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+/// Opens a `WebSocket` connection at the specified `URL`.
+///
+/// This is a shorthand for creating a [`Request`], sending it, and turning the
+/// [`Response`] into a [`WebSocket`].
+///
+/// [`Request`]: reqwest::Request
+/// [`Response`]: reqwest::Response
+pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket> {
+    builder_http1_only(Client::builder())
         .build()?
         .get(url)
         .upgrade()
@@ -108,33 +125,35 @@ pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
         .await?)
 }
 
+#[inline]
 #[cfg(not(target_arch = "wasm32"))]
 fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
     builder.http1_only()
 }
 
+#[inline]
 #[cfg(target_arch = "wasm32")]
 fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
     builder
 }
 
-/// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
+/// Trait that extends `reqwest::`[`RequestBuilder`] with an `upgrade` method.
 pub trait RequestBuilderExt {
+    /// Upgrades the [`RequestBuilder`] to perform a `WebSocket` handshake.
+    ///
+    /// This returns a wrapped type, so you must do this after you set up
+    /// your request, and just before sending the request.
     fn upgrade(self) -> UpgradedRequestBuilder;
 }
 
 impl RequestBuilderExt for RequestBuilder {
-    /// Upgrades the [`RequestBuilder`] to peform a
-    /// websocket handshake. This returns a wrapped type, so you you must do
-    /// this after you setup your request, and just before you send the
-    /// request.
     fn upgrade(self) -> UpgradedRequestBuilder {
         UpgradedRequestBuilder::new(self)
     }
 }
 
-/// Wrapper for [`RequestBuilder`] that performs the
-/// websocket handshake when sent.
+/// Wrapper for a `reqwest::`[`RequestBuilder`] that performs the
+/// `WebSocket` handshake when sent.
 pub struct UpgradedRequestBuilder {
     inner: RequestBuilder,
     protocols: Vec<String>,
@@ -149,7 +168,7 @@ impl UpgradedRequestBuilder {
     }
 
     /// Sends the request and returns an [`UpgradeResponse`].
-    pub async fn send(self) -> Result<UpgradeResponse, Error> {
+    pub async fn send(self) -> Result<UpgradeResponse> {
         #[cfg(not(target_arch = "wasm32"))]
         let inner = native::send_request(self.inner).await?;
 
@@ -163,7 +182,7 @@ impl UpgradedRequestBuilder {
     }
 }
 
-/// The server's response to the websocket upgrade request.
+/// The server's response to the `WebSocket` upgrade request.
 ///
 /// On non-wasm platforms, this implements `Deref<Target = Response>`, so you
 /// can access all the usual information from the [`reqwest::Response`].
@@ -188,9 +207,9 @@ impl std::ops::Deref for UpgradeResponse {
 }
 
 impl UpgradeResponse {
-    /// Turns the response into a websocket. This checks if the websocket
-    /// handshake was successful.
-    pub async fn into_websocket(self) -> Result<WebSocket, Error> {
+    /// Turns the response into a `WebSocket`.
+    /// This checks if the `WebSocket` handshake was successful.
+    pub async fn into_websocket(self) -> Result<WebSocket> {
         #[cfg(not(target_arch = "wasm32"))]
         let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols).await?;
 
@@ -210,7 +229,8 @@ impl UpgradeResponse {
     }
 }
 
-/// A websocket connection
+/// A `WebSocket` connection. Implements `futures::`[`Stream`] and
+/// `futures::`[`Sink`].
 pub struct WebSocket {
     #[cfg(not(target_arch = "wasm32"))]
     inner: native::WebSocketStream,
@@ -228,7 +248,7 @@ impl WebSocket {
     }
 
     /// Closes the connection with a given code and (optional) reason.
-    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
+    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<()> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut inner = self.inner;
@@ -248,7 +268,7 @@ impl WebSocket {
 }
 
 impl Stream for WebSocket {
-    type Item = Result<Message, Error>;
+    type Item = Result<Message>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
@@ -358,7 +378,10 @@ mod tests {
     #[tokio::test]
     async fn test_close() {
         let websocket = websocket("https://echo.websocket.org/").await.unwrap();
-        websocket.close(CloseCode::Protocol, Some("test")).await.expect("close returned an error");
+        websocket
+            .close(CloseCode::Protocol, Some("test"))
+            .await
+            .expect("close returned an error");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "reqwest-websocket"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Janosch Gräf <janosch.graef@gmail.com>"]
 description = "Websocket connections with reqwest"
@@ -15,12 +15,22 @@ categories = [
     "web-programming::websocket",
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+json = ["dep:serde", "dep:serde_json"]
+
 [dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 reqwest = { version = "0.12", default-features = false }
 thiserror = "1"
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 tracing = "0.1"
+
+serde = { version = "1.0", default-features = false, optional = true }
+serde_json = { version = "1.0", default-features = false, optional = true, features = ["alloc"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-tungstenite = { version = "0.25", default-features = false }
@@ -33,3 +43,4 @@ tokio = { version = "1", default-features = false, features = ["sync", "macros"]
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 reqwest = { version = "0.12", features = ["default-tls"] }
+serde = { version = "1.0", features = ["derive"] }

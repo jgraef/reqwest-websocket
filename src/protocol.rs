@@ -1,20 +1,91 @@
-/// A websocket message, which can be a text string or binary data.
+#[cfg(feature = "json")]
+use serde::{
+    de::DeserializeOwned,
+    Serialize,
+};
+
+#[cfg(feature = "json")]
+use crate::Result;
+
+/// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
     Text(String),
     Binary(Vec<u8>),
 }
 
+impl Message {
+    /// Tries to serialize the JSON as a [`Message::Text`].
+    ///
+    /// # Optional
+    ///
+    /// This requires the optional `json` feature enabled.
+    ///
+    /// # Errors
+    ///
+    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
+    /// fail, or if `T` contains a map with non-string keys.
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
+        serde_json::to_string(json)
+            .map(Message::Text)
+            .map_err(Into::into)
+    }
+
+    /// Tries to serialize the JSON as a [`Message::Binary`].
+    ///
+    /// # Optional
+    ///
+    /// This requires the optional `json` feature enabled.
+    ///
+    /// # Errors
+    ///
+    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
+    /// fail, or if `T` contains a map with non-string keys.
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
+        serde_json::to_vec(json)
+            .map(Message::Binary)
+            .map_err(Into::into)
+    }
+
+    /// Tries to deserialize the message body as JSON.
+    ///
+    /// # Optional
+    ///
+    /// This requires the optional `json` feature enabled.
+    ///
+    /// # Errors
+    ///
+    /// This method fails whenever the response body is not in `JSON` format,
+    /// or it cannot be properly deserialized to target type `T`.
+    ///
+    /// For more details please see [`serde_json::from_str`] and
+    /// [`serde_json::from_slice`].
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T> {
+        match self {
+            Message::Text(x) => serde_json::from_str(&x),
+            Message::Binary(x) => serde_json::from_slice(&x),
+        }
+        .map_err(Into::into)
+    }
+}
+
 /// Status code used to indicate why an endpoint is closing the WebSocket
 /// connection.
 ///
-/// Copied from tungstenite, since we also need this for the wasm backend[1].
+/// Copied from `tungstenite`, since we also need this for the wasm backend[1].
 ///
 /// [1]: https://docs.rs/tungstenite/latest/tungstenite/protocol/frame/coding/enum.CloseCode.html
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
 pub enum CloseCode {
     /// Indicates a normal closure, meaning that the purpose for
     /// which the connection was established has been fulfilled.
+    #[default]
     Normal,
     /// Indicates that an endpoint is "going away", such as a server
     /// going down or a browser having navigated away from a page.
@@ -152,8 +223,41 @@ impl From<u16> for CloseCode {
     }
 }
 
-impl Default for CloseCode {
-    fn default() -> Self {
-        Self::Normal
+#[cfg(test)]
+#[cfg(feature = "json")]
+mod test {
+    use serde::{
+        Deserialize,
+        Serialize,
+    };
+
+    use crate::{
+        Message,
+        Result,
+    };
+
+    #[derive(Default, Serialize, Deserialize)]
+    struct Content {
+        message: String,
+    }
+
+    #[test]
+    pub fn text_json() -> Result<()> {
+        let content = Content::default();
+        let message = Message::text_from_json(&content)?;
+        assert!(matches!(message, Message::Text(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn binary_json() -> Result<()> {
+        let content = Content::default();
+        let message = Message::binary_from_json(&content)?;
+        assert!(matches!(message, Message::Binary(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
     }
 }
