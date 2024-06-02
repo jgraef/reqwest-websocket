@@ -1,3 +1,11 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Lang: Rust
 /Cargo.lock
 /target
-/.vscode

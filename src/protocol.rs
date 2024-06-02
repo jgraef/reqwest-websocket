@@ -1,8 +1,28 @@
+#[cfg(feature = "json")]
+use serde::de::DeserializeOwned;
+
 /// A websocket message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
     Text(String),
     Binary(Vec<u8>),
+}
+
+impl Message {
+    /// Tries to deserialize the message body as JSON.
+    ///
+    /// # Optional
+    ///
+    /// This requires the optional `json` feature enabled.
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T, crate::Error> {
+        match self {
+            Message::Text(x) => serde_json::from_str(&x),
+            Message::Binary(x) => serde_json::from_slice(&x),
+        }
+        .map_err(Into::into)
+    }
 }
 
 /// Status code used to indicate why an endpoint is closing the WebSocket

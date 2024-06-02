@@ -1,3 +1,6 @@
+#![forbid(unsafe_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Provides wrappers for [`reqwest`][2] to enable [websocket][1] connections.
 //!
 //! # Example
@@ -90,6 +93,11 @@ pub enum Error {
     #[cfg(target_arch = "wasm32")]
     #[error("web_sys error")]
     WebSys(#[from] wasm::WebSysError),
+
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    #[error("json decoding failed")]
+    Json(#[from] serde_json::Error),
 }
 
 /// Opens a websocket at the specified URL.
@@ -358,7 +366,10 @@ mod tests {
     #[tokio::test]
     async fn test_close() {
         let websocket = websocket("https://echo.websocket.org/").await.unwrap();
-        websocket.close(CloseCode::Protocol, Some("test")).await.expect("close returned an error");
+        websocket
+            .close(CloseCode::Protocol, Some("test"))
+            .await
+            .expect("close returned an error");
     }
 
     #[test]
