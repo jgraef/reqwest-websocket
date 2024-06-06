@@ -1,5 +1,7 @@
-# 0.3.1
+# 0.4.0
 
+- close: (#9)
+  - integrate `GitHub Action`s and `Dependabot`.
 - close: (#12 and #13)
   - add `json` feature (disabled by default).
   - add `serde` and `serde_json` optional dependencies.
