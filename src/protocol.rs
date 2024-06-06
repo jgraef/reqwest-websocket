@@ -213,3 +213,42 @@ impl From<u16> for CloseCode {
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "json")]
+mod test {
+    use serde::{
+        Deserialize,
+        Serialize,
+    };
+
+    use crate::{
+        Error,
+        Message,
+    };
+
+    #[derive(Default, Serialize, Deserialize)]
+    struct Content {
+        message: String,
+    }
+
+    #[test]
+    pub fn text_json() -> Result<(), Error> {
+        let content = Content::default();
+        let message = Message::text_from_json(&content)?;
+        assert!(matches!(message, Message::Text(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn binary_json() -> Result<(), Error> {
+        let content = Content::default();
+        let message = Message::binary_from_json(&content)?;
+        assert!(matches!(message, Message::Binary(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
+    }
+}
