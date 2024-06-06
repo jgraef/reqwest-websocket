@@ -23,6 +23,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
+          components: clippy, rustfmt
 
       - name: Set up Cache
         uses: Swatinem/rust-cache@v2
