@@ -55,23 +55,30 @@ impl Message {
     /// # Optional
     ///
     /// This requires the optional `json` feature enabled.
+    ///
+    /// # Errors
+    ///
+    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
+    /// fail, or if `T` contains a map with non-string keys.
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn json<T: DeserializeOwned>(&self) -> Result<T, crate::Error> {
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
         match self {
-            Message::Text(x) => serde_json::from_str(&x),
-            Message::Binary(x) => serde_json::from_slice(&x),
+            Self::Text(x) => serde_json::from_str(x),
+            Self::Binary(x) => serde_json::from_slice(x),
         }
         .map_err(Into::into)
     }
 }
 
-/// Status code used to indicate why an endpoint is closing the WebSocket
+/// Status code used to indicate why an endpoint is closing the `WebSocket`
 /// connection.
 ///
-/// Copied from `tungstenite`, since we also need this for the wasm backend[1].
+/// Copied from `tungstenite`, since we also need this for the `Wasm`
+/// backend[1].
 ///
 /// [1]: https://docs.rs/tungstenite/latest/tungstenite/protocol/frame/coding/enum.CloseCode.html
+#[non_exhaustive]
 #[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
 pub enum CloseCode {
     /// Indicates a normal closure, meaning that the purpose for
@@ -117,10 +124,10 @@ pub enum CloseCode {
     /// Indicates that an endpoint (client) is terminating the
     /// connection because it has expected the server to negotiate one or
     /// more extension, but the server didn't return them in the response
-    /// message of the WebSocket handshake.  The list of extensions that
+    /// message of the `WebSocket` handshake.  The list of extensions that
     /// are needed should be given as the reason for closing.
     /// Note that this status code is not used by the server, because it
-    /// can fail the WebSocket handshake instead.
+    /// can fail the `WebSocket` handshake instead.
     Extension,
     /// Indicates that a server is terminating the connection because
     /// it encountered an unexpected condition that prevented it from
@@ -147,8 +154,9 @@ pub enum CloseCode {
 }
 
 impl CloseCode {
-    /// Check if this CloseCode is allowed.
-    pub fn is_allowed(self) -> bool {
+    /// Check if this `CloseCode` is allowed.
+    #[must_use]
+    pub const fn is_allowed(self) -> bool {
         !matches!(
             self,
             Self::Bad(_) | Self::Reserved(_) | Self::Status | Self::Abnormal | Self::Tls
@@ -159,12 +167,12 @@ impl CloseCode {
 impl std::fmt::Display for CloseCode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let code: u16 = (*self).into();
-        write!(f, "{}", code)
+        write!(f, "{code}")
     }
 }
 
 impl From<CloseCode> for u16 {
-    fn from(code: CloseCode) -> u16 {
+    fn from(code: CloseCode) -> Self {
         match code {
             CloseCode::Normal => 1000,
             CloseCode::Away => 1001,
@@ -180,10 +188,10 @@ impl From<CloseCode> for u16 {
             CloseCode::Restart => 1012,
             CloseCode::Again => 1013,
             CloseCode::Tls => 1015,
-            CloseCode::Reserved(code) => code,
-            CloseCode::Iana(code) => code,
-            CloseCode::Library(code) => code,
-            CloseCode::Bad(code) => code,
+            CloseCode::Reserved(code)
+            | CloseCode::Iana(code)
+            | CloseCode::Library(code)
+            | CloseCode::Bad(code) => code,
         }
     }
 }
@@ -205,7 +213,6 @@ impl From<u16> for CloseCode {
             1012 => Self::Restart,
             1013 => Self::Again,
             1015 => Self::Tls,
-            1..=999 => Self::Bad(code),
             1016..=2999 => Self::Reserved(code),
             3000..=3999 => Self::Iana(code),
             4000..=4999 => Self::Library(code),

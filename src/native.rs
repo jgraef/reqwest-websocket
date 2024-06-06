@@ -28,21 +28,20 @@ pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketRe
     match url.scheme() {
         "ws" => {
             url.set_scheme("http")
-                .expect("url should accept http scheme")
+                .expect("url should accept http scheme");
         }
         "wss" => {
             url.set_scheme("https")
-                .expect("url should accept https scheme")
+                .expect("url should accept https scheme");
         }
         _ => {}
     }
 
     // prepare request
     let version = request.version();
-    let nonce;
-    match version {
+    let nonce = match version {
         Version::HTTP_10 | Version::HTTP_11 => {
-            // HTTP 1 requires us to set some headers
+            // HTTP 1 requires us to set some headers.
             let nonce_value = tungstenite::handshake::client::generate_key();
             let headers = request.headers_mut();
             headers.insert(
@@ -61,16 +60,17 @@ pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketRe
                 reqwest::header::SEC_WEBSOCKET_VERSION,
                 HeaderValue::from_static("13"),
             );
-            nonce = Some(nonce_value);
+
+            Some(nonce_value)
         }
         Version::HTTP_2 => {
-            //todo!("implement websocket upgrade for http 2");
+            // TODO: Implement websocket upgrade for HTTP 2.
             return Err(HandshakeError::UnsupportedHttpVersion(version).into());
         }
         _ => {
             return Err(HandshakeError::UnsupportedHttpVersion(version).into());
         }
-    }
+    };
 
     // execute request
     let response = client.execute(request).await?;
@@ -139,9 +139,7 @@ impl WebSocketResponse {
         if let Some(header) = headers.get(reqwest::header::CONNECTION) {
             if !header
                 .to_str()
-                .ok()
-                .map(|s| s.eq_ignore_ascii_case("upgrade"))
-                .unwrap_or_default()
+                .is_ok_and(|s| s.eq_ignore_ascii_case("upgrade"))
             {
                 tracing::debug!("server responded with invalid Connection header: {header:?}");
                 return Err(HandshakeError::UnexpectedHeaderValue {
@@ -163,9 +161,7 @@ impl WebSocketResponse {
         if let Some(header) = headers.get(reqwest::header::UPGRADE) {
             if !header
                 .to_str()
-                .ok()
-                .map(|s| s.eq_ignore_ascii_case("websocket"))
-                .unwrap_or_default()
+                .is_ok_and(|s| s.eq_ignore_ascii_case("websocket"))
             {
                 tracing::debug!("server responded with invalid Upgrade header: {header:?}");
                 return Err(HandshakeError::UnexpectedHeaderValue {
@@ -188,12 +184,7 @@ impl WebSocketResponse {
             let expected_nonce = tungstenite::handshake::derive_accept_key(nonce.as_bytes());
 
             if let Some(header) = headers.get(reqwest::header::SEC_WEBSOCKET_ACCEPT) {
-                if !header
-                    .to_str()
-                    .ok()
-                    .map(|s| s == expected_nonce)
-                    .unwrap_or_default()
-                {
+                if !header.to_str().is_ok_and(|s| s == expected_nonce) {
                     tracing::debug!(
                         "server responded with invalid Sec-Websocket-Accept header: {header:?}"
                     );
@@ -217,7 +208,7 @@ impl WebSocketResponse {
         let protocol = headers
             .get(reqwest::header::SEC_WEBSOCKET_PROTOCOL)
             .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_owned());
+            .map(ToOwned::to_owned);
 
         match (protocols.is_empty(), &protocol) {
             (true, None) => {
