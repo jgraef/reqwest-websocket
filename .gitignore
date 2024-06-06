@@ -6,6 +6,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Lang: Rust
+# Rust
 /Cargo.lock
 /target
