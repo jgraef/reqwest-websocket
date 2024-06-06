@@ -122,7 +122,7 @@ pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket> {
         .send()
         .await?
         .into_websocket()
-        .await?)
+        .await
 }
 
 #[inline]
@@ -223,6 +223,7 @@ impl UpgradeResponse {
     }
 
     /// Consumes the response and returns the inner [`reqwest::Response`].
+    #[must_use]
     #[cfg(not(target_arch = "wasm32"))]
     pub fn into_inner(self) -> reqwest::Response {
         self.inner.response
@@ -277,12 +278,12 @@ impl Stream for WebSocket {
                 Poll::Ready(None) => return Poll::Ready(None),
                 Poll::Ready(Some(Err(error))) => return Poll::Ready(Some(Err(error.into()))),
                 Poll::Ready(Some(Ok(message))) => {
-                    match message.try_into() {
-                        Ok(message) => return Poll::Ready(Some(Ok(message))),
-                        Err(_) => {
-                            // this won't convert pings, pongs, etc. but we
-                            // don't care about those.
-                        }
+                    if let Ok(message) = message.try_into() {
+                        return Poll::Ready(Some(Ok(message)));
+                    }
+                    else {
+                        // This won't convert pings, pongs, etc. but we
+                        // don't care about those.
                     }
                 }
             }
@@ -385,13 +386,13 @@ mod tests {
     }
 
     #[test]
-    fn closecode_from_u16() {
+    fn close_code_from_u16() {
         let byte = 1008u16;
         assert_eq!(CloseCode::from(byte), CloseCode::Policy);
     }
 
     #[test]
-    fn closecode_into_u16() {
+    fn close_code_into_u16() {
         let text = CloseCode::Away;
         let byte: u16 = text.into();
         assert_eq!(byte, 1001u16);
