@@ -81,7 +81,7 @@ use reqwest::{
 pub enum Error {
     #[cfg(not(target_arch = "wasm32"))]
     #[error("websocket upgrade failed")]
-    Handshake(#[from] native::HandshakeError),
+    Handshake(#[from] HandshakeError),
 
     #[error("reqwest error")]
     Reqwest(#[from] reqwest::Error),
@@ -96,7 +96,7 @@ pub enum Error {
 
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    #[error("json decoding failed")]
+    #[error("serde_json error")]
     Json(#[from] serde_json::Error),
 }
 
@@ -132,10 +132,9 @@ pub trait RequestBuilderExt {
 }
 
 impl RequestBuilderExt for RequestBuilder {
-    /// Upgrades the [`RequestBuilder`] to peform a
-    /// websocket handshake. This returns a wrapped type, so you you must do
-    /// this after you setup your request, and just before you send the
-    /// request.
+    /// Upgrades the [`RequestBuilder`] to perform a websocket handshake.
+    /// This returns a wrapped type, so you must do this after you set up
+    /// your request, and just before sending the request.
     fn upgrade(self) -> UpgradedRequestBuilder {
         UpgradedRequestBuilder::new(self)
     }
