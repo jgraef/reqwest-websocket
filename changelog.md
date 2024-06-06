@@ -8,7 +8,7 @@
   - add `Message::*_from_json` and `Method::json` methods.
   - add `Error::Json(serde_json::Error)` variant.
 
-# 0.3.0
+# 0.3.1
 
 - close: (#11)
   - add `protocol::CloseReason`.
