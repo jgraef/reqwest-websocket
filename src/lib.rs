@@ -1,35 +1,38 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-//! Provides wrappers for [`reqwest`][2] to enable [websocket][1] connections.
+//! Provides wrappers for [`reqwest`][2] to enable [`WebSocket`][1] connections.
 //!
 //! # Example
 //!
 //! ```
 //! # use reqwest::Client;
-//! # use reqwest_websocket::Message;
+//! # use reqwest_websocket::{Message, Result};
 //! # use futures_util::{TryStreamExt, SinkExt};
+//! #
 //! # fn main() {
-//! # run(); // intentionally ignore the future. we only care that it compiles.
+//! #     // Intentionally ignore the future. We only care that it compiles.
+//! #     let _ = run();
 //! # }
-//! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! // Extends the reqwest::RequestBuilder to allow websocket upgrades
+//! #
+//! # async fn run() -> Result<()> {
+//! // Extends the `reqwest::RequestBuilder` to allow WebSocket upgrades.
 //! use reqwest_websocket::RequestBuilderExt;
 //!
-//! // create a GET request, upgrade it and send it.
+//! // Creates a GET request, upgrades and sends it.
 //! let response = Client::default()
 //!     .get("wss://echo.websocket.org/")
-//!     .upgrade() // prepares the websocket upgrade.
+//!     .upgrade() // Prepares the WebSocket upgrade.
 //!     .send()
 //!     .await?;
 //!
-//! // turn the response into a websocket stream
+//! // Turns the response into a WebSocket stream.
 //! let mut websocket = response.into_websocket().await?;
 //!
-//! // the websocket implements `Sink<Message>`.
+//! // The WebSocket implements `Sink<Message>`.
 //! websocket.send(Message::Text("Hello, World".into())).await?;
 //!
-//! // the websocket is also a `TryStream` over `Message`s.
+//! // The WebSocket is also a `TryStream` over `Message`s.
 //! while let Some(message) = websocket.try_next().await? {
 //!     match message {
 //!         Message::Text(text) => println!("{text}"),
@@ -76,7 +79,7 @@ use reqwest::{
     RequestBuilder,
 };
 
-/// Errors returned by `reqwest_websocket`
+/// Errors returned by `reqwest_websocket`.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[cfg(not(target_arch = "wasm32"))]
@@ -99,6 +102,11 @@ pub enum Error {
     #[error("serde_json error")]
     Json(#[from] serde_json::Error),
 }
+
+/// Specialized [`Result`] type for the `WebSocket` messaging.
+///
+/// [`Result`]: std::result::Result
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// Opens a websocket at the specified URL.
 ///

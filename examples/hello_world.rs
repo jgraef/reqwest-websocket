@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use futures_util::{
     SinkExt,
     StreamExt,
@@ -9,10 +7,11 @@ use reqwest::Client;
 use reqwest_websocket::{
     Message,
     RequestBuilderExt,
+    Result,
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<()> {
     let websocket = Client::default()
         .get("wss://echo.websocket.org/")
         .upgrade()
@@ -32,9 +31,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     while let Some(message) = rx.try_next().await? {
-        match message {
-            Message::Text(text) => println!("received: {text}"),
-            _ => {}
+        if let Message::Text(text) = message {
+            println!("received: {text}")
         }
     }
 

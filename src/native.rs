@@ -16,10 +16,10 @@ use crate::{
         CloseCode,
         Message,
     },
-    Error,
+    Result,
 };
 
-pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
+pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse> {
     let (client, request_result) = request_builder.build_split();
     let mut request = request_result?;
 
@@ -85,7 +85,7 @@ pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketRe
 pub type WebSocketStream =
     async_tungstenite::WebSocketStream<tokio_util::compat::Compat<reqwest::Upgraded>>;
 
-/// Error during Websocket handshake
+/// Error during `Websocket` handshake.
 #[derive(Debug, thiserror::Error)]
 pub enum HandshakeError {
     #[error("unsupported http version: {0:?}")]
@@ -124,7 +124,7 @@ impl WebSocketResponse {
     pub async fn into_stream_and_protocol(
         self,
         protocols: Vec<String>,
-    ) -> Result<(WebSocketStream, Option<String>), Error> {
+    ) -> Result<(WebSocketStream, Option<String>)> {
         let headers = self.response.headers();
 
         if self.response.version() != self.version {

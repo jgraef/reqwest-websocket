@@ -4,7 +4,8 @@ use serde::{
     Serialize,
 };
 
-use crate::Error;
+#[cfg(feature = "json")]
+use crate::Result;
 
 /// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
@@ -26,7 +27,7 @@ impl Message {
     /// fail, or if `T` contains a map with non-string keys.
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
+    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
         serde_json::to_string(json)
             .map(Message::Text)
             .map_err(Into::into)
@@ -44,7 +45,7 @@ impl Message {
     /// fail, or if `T` contains a map with non-string keys.
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
+    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
         serde_json::to_vec(json)
             .map(Message::Binary)
             .map_err(Into::into)
@@ -62,7 +63,7 @@ impl Message {
     /// fail, or if `T` contains a map with non-string keys.
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T> {
         match self {
             Self::Text(x) => serde_json::from_str(x),
             Self::Binary(x) => serde_json::from_slice(x),
@@ -230,8 +231,8 @@ mod test {
     };
 
     use crate::{
-        Error,
         Message,
+        Result,
     };
 
     #[derive(Default, Serialize, Deserialize)]
@@ -240,7 +241,7 @@ mod test {
     }
 
     #[test]
-    pub fn text_json() -> Result<(), Error> {
+    pub fn text_json() -> Result<()> {
         let content = Content::default();
         let message = Message::text_from_json(&content)?;
         assert!(matches!(message, Message::Text(_)));
@@ -250,7 +251,7 @@ mod test {
     }
 
     #[test]
-    pub fn binary_json() -> Result<(), Error> {
+    pub fn binary_json() -> Result<()> {
         let content = Content::default();
         let message = Message::binary_from_json(&content)?;
         assert!(matches!(message, Message::Binary(_)));
