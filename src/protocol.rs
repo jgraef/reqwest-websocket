@@ -59,8 +59,11 @@ impl Message {
     ///
     /// # Errors
     ///
-    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
-    /// fail, or if `T` contains a map with non-string keys.
+    /// This method fails whenever the response body is not in `JSON` format,
+    /// or it cannot be properly deserialized to target type `T`.
+    ///
+    /// For more details please see [`serde_json::from_str`] and
+    /// [`serde_json::from_slice`].
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn json<T: DeserializeOwned>(&self) -> Result<T> {

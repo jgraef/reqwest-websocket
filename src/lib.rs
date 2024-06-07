@@ -34,9 +34,8 @@
 //!
 //! // The WebSocket is also a `TryStream` over `Message`s.
 //! while let Some(message) = websocket.try_next().await? {
-//!     match message {
-//!         Message::Text(text) => println!("{text}"),
-//!         _ => {}
+//!     if let Message::Text(text) = message {
+//!         println!("received: {text}")
 //!     }
 //! }
 //! # Ok(())
@@ -108,11 +107,14 @@ pub enum Error {
 /// [`Result`]: std::result::Result
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-/// Opens a websocket at the specified URL.
+/// Opens a `WebSocket` connection at the specified `URL`.
 ///
-/// This is a shorthand for creating a request, sending it, and turning the
-/// response into a websocket.
-pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
+/// This is a shorthand for creating a [`Request`], sending it, and turning the
+/// [`Response`] into a [`WebSocket`].
+///
+/// [`Request`]: reqwest::Request
+/// [`Response`]: reqwest::Response
+pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket> {
     builder_http1_only(Client::builder())
         .build()?
         .get(url)
@@ -123,32 +125,35 @@ pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
         .await
 }
 
+#[inline]
 #[cfg(not(target_arch = "wasm32"))]
 fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
     builder.http1_only()
 }
 
+#[inline]
 #[cfg(target_arch = "wasm32")]
 fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
     builder
 }
 
-/// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
+/// Trait that extends `reqwest::`[`RequestBuilder`] with an `upgrade` method.
 pub trait RequestBuilderExt {
+    /// Upgrades the [`RequestBuilder`] to perform a `WebSocket` handshake.
+    ///
+    /// This returns a wrapped type, so you must do this after you set up
+    /// your request, and just before sending the request.
     fn upgrade(self) -> UpgradedRequestBuilder;
 }
 
 impl RequestBuilderExt for RequestBuilder {
-    /// Upgrades the [`RequestBuilder`] to perform a websocket handshake.
-    /// This returns a wrapped type, so you must do this after you set up
-    /// your request, and just before sending the request.
     fn upgrade(self) -> UpgradedRequestBuilder {
         UpgradedRequestBuilder::new(self)
     }
 }
 
-/// Wrapper for [`RequestBuilder`] that performs the
-/// websocket handshake when sent.
+/// Wrapper for a `reqwest::`[`RequestBuilder`] that performs the
+/// `WebSocket` handshake when sent.
 pub struct UpgradedRequestBuilder {
     inner: RequestBuilder,
     protocols: Vec<String>,
@@ -163,7 +168,7 @@ impl UpgradedRequestBuilder {
     }
 
     /// Sends the request and returns an [`UpgradeResponse`].
-    pub async fn send(self) -> Result<UpgradeResponse, Error> {
+    pub async fn send(self) -> Result<UpgradeResponse> {
         #[cfg(not(target_arch = "wasm32"))]
         let inner = native::send_request(self.inner).await?;
 
@@ -177,7 +182,7 @@ impl UpgradedRequestBuilder {
     }
 }
 
-/// The server's response to the websocket upgrade request.
+/// The server's response to the `WebSocket` upgrade request.
 ///
 /// On non-wasm platforms, this implements `Deref<Target = Response>`, so you
 /// can access all the usual information from the [`reqwest::Response`].
@@ -204,7 +209,7 @@ impl std::ops::Deref for UpgradeResponse {
 impl UpgradeResponse {
     /// Turns the response into a `WebSocket`.
     /// This checks if the `WebSocket` handshake was successful.
-    pub async fn into_websocket(self) -> Result<WebSocket, Error> {
+    pub async fn into_websocket(self) -> Result<WebSocket> {
         #[cfg(not(target_arch = "wasm32"))]
         let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols).await?;
 
@@ -225,7 +230,8 @@ impl UpgradeResponse {
     }
 }
 
-/// A `WebSocket` connection
+/// A `WebSocket` connection. Implements `futures::`[`Stream`] and
+/// `futures::`[`Sink`].
 pub struct WebSocket {
     #[cfg(not(target_arch = "wasm32"))]
     inner: native::WebSocketStream,
@@ -243,7 +249,7 @@ impl WebSocket {
     }
 
     /// Closes the connection with a given code and (optional) reason.
-    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
+    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<()> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let mut inner = self.inner;
@@ -263,7 +269,7 @@ impl WebSocket {
 }
 
 impl Stream for WebSocket {
-    type Item = Result<Message, Error>;
+    type Item = Result<Message>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {
