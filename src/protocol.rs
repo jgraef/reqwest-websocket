@@ -251,7 +251,7 @@ mod test {
         Deserialize,
         Serialize,
     };
-    use serde_json::Error;
+    use crate::Error;
 
     use crate::Message;
 
