@@ -10,7 +10,7 @@ The current changes need a *minor* version bump.
   - add `json` feature (disabled by default).
   - add `serde` and `serde_json` optional dependencies.
   - add `Message::*_from_json` and `Method::json` methods.
-  - add `Error::Json(serde_json::Error)` variant.
+  - add `Error::Json(serde_json::Error)` variant. *breaking*
    - this would normally break semver-compatibility, but it's behind a feature flag that wasn't available before. 
 
 - close: (#11)

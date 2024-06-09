@@ -100,6 +100,11 @@ pub enum Error {
     #[cfg_attr(docsrs, doc(cfg(target_arch = "wasm32")))]
     #[error("web_sys error")]
     WebSys(#[from] wasm::WebSysError),
+
+    #[cfg(feature = "json")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    #[error("json error")]
+    Json(#[from] serde_json::Error),
 }
 
 /// Opens a `WebSocket` connection at the specified `URL`.

@@ -4,16 +4,15 @@ use serde::{
     Serialize,
 };
 
+#[cfg(feature = "json")]
+use crate::Error;
+
 /// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
     Text(String),
     Binary(Vec<u8>),
 }
-
-#[cfg(feature = "json")]
-#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-pub type JsonError = serde_json::Error;
 
 #[cfg(feature = "json")]
 impl Message {
@@ -28,7 +27,7 @@ impl Message {
     /// Serialization can fail if `T`'s implementation of `Serialize` decides to
     /// fail, or if `T` contains a map with non-string keys.
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, JsonError> {
+    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
         serde_json::to_string(json)
             .map(Message::Text)
             .map_err(Into::into)
@@ -45,7 +44,7 @@ impl Message {
     /// Serialization can fail if `T`'s implementation of `Serialize` decides to
     /// fail, or if `T` contains a map with non-string keys.
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, JsonError> {
+    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
         serde_json::to_vec(json)
             .map(Message::Binary)
             .map_err(Into::into)
@@ -65,7 +64,7 @@ impl Message {
     /// For more details please see [`serde_json::from_str`] and
     /// [`serde_json::from_slice`].
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn json<T: DeserializeOwned>(&self) -> Result<T, JsonError> {
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
         match self {
             Self::Text(x) => serde_json::from_str(x),
             Self::Binary(x) => serde_json::from_slice(x),
