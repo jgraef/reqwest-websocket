@@ -4,9 +4,6 @@ use serde::{
     Serialize,
 };
 
-#[cfg(feature = "json")]
-use crate::Result;
-
 /// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
@@ -14,6 +11,11 @@ pub enum Message {
     Binary(Vec<u8>),
 }
 
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+pub type JsonError = serde_json::Error;
+
+#[cfg(feature = "json")]
 impl Message {
     /// Tries to serialize the JSON as a [`Message::Text`].
     ///
@@ -25,9 +27,8 @@ impl Message {
     ///
     /// Serialization can fail if `T`'s implementation of `Serialize` decides to
     /// fail, or if `T` contains a map with non-string keys.
-    #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
+    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, JsonError> {
         serde_json::to_string(json)
             .map(Message::Text)
             .map_err(Into::into)
@@ -37,15 +38,14 @@ impl Message {
     ///
     /// # Optional
     ///
-    /// This requires the optional `json` feature enabled.
+    /// This requires that the optional `json` feature is enabled.
     ///
     /// # Errors
     ///
     /// Serialization can fail if `T`'s implementation of `Serialize` decides to
     /// fail, or if `T` contains a map with non-string keys.
-    #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self> {
+    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, JsonError> {
         serde_json::to_vec(json)
             .map(Message::Binary)
             .map_err(Into::into)
@@ -55,7 +55,7 @@ impl Message {
     ///
     /// # Optional
     ///
-    /// This requires the optional `json` feature enabled.
+    /// This requires that the optional `json` feature is enabled.
     ///
     /// # Errors
     ///
@@ -64,9 +64,8 @@ impl Message {
     ///
     /// For more details please see [`serde_json::from_str`] and
     /// [`serde_json::from_slice`].
-    #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn json<T: DeserializeOwned>(&self) -> Result<T> {
+    pub fn json<T: DeserializeOwned>(&self) -> Result<T, JsonError> {
         match self {
             Self::Text(x) => serde_json::from_str(x),
             Self::Binary(x) => serde_json::from_slice(x),
@@ -76,55 +75,60 @@ impl Message {
 }
 
 /// Status code used to indicate why an endpoint is closing the `WebSocket`
-/// connection.
+/// connection.[1]
 ///
-/// Copied from `tungstenite`, since we also need this for the `Wasm`
-/// backend[1].
-///
-/// [1]: https://docs.rs/tungstenite/latest/tungstenite/protocol/frame/coding/enum.CloseCode.html
-#[non_exhaustive]
+/// [1]: https://datatracker.ietf.org/doc/html/rfc6455
 #[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
 pub enum CloseCode {
     /// Indicates a normal closure, meaning that the purpose for
     /// which the connection was established has been fulfilled.
     #[default]
     Normal,
+
     /// Indicates that an endpoint is "going away", such as a server
     /// going down or a browser having navigated away from a page.
     Away,
+
     /// Indicates that an endpoint is terminating the connection due
     /// to a protocol error.
     Protocol,
+
     /// Indicates that an endpoint is terminating the connection
     /// because it has received a type of data it cannot accept (e.g., an
     /// endpoint that understands only text data MAY send this if it
     /// receives a binary message).
     Unsupported,
+
     /// Indicates that no status code was included in a closing frame. This
     /// close code makes it possible to use a single method, `on_close` to
     /// handle even cases where no close code was provided.
     Status,
+
     /// Indicates an abnormal closure. If the abnormal closure was due to an
     /// error, this close code will not be used. Instead, the `on_error` method
     /// of the handler will be called with the error. However, if the connection
     /// is simply dropped, without an error, this close code will be sent to the
     /// handler.
     Abnormal,
+
     /// Indicates that an endpoint is terminating the connection
     /// because it has received data within a message that was not
     /// consistent with the type of the message (e.g., non-UTF-8 \[RFC3629\]
     /// data within a text message).
     Invalid,
+
     /// Indicates that an endpoint is terminating the connection
     /// because it has received a message that violates its policy.  This
     /// is a generic status code that can be returned when there is no
     /// other more suitable status code (e.g., Unsupported or Size) or if there
     /// is a need to hide specific details about the policy.
     Policy,
+
     /// Indicates that an endpoint is terminating the connection
     /// because it has received a message that is too big for it to
     /// process.
     Size,
+
     /// Indicates that an endpoint (client) is terminating the
     /// connection because it has expected the server to negotiate one or
     /// more extension, but the server didn't return them in the response
@@ -133,27 +137,42 @@ pub enum CloseCode {
     /// Note that this status code is not used by the server, because it
     /// can fail the `WebSocket` handshake instead.
     Extension,
+
     /// Indicates that a server is terminating the connection because
     /// it encountered an unexpected condition that prevented it from
     /// fulfilling the request.
     Error,
+
     /// Indicates that the server is restarting. A client may choose to
     /// reconnect, and if it does, it should use a randomized delay of 5-30
     /// seconds between attempts.
     Restart,
+
     /// Indicates that the server is overloaded and the client should either
     /// connect to a different IP (when multiple targets exist), or
     /// reconnect to the same IP when a user has performed an action.
     Again,
-    #[doc(hidden)]
+
+    /// Indicates that the connection was closed due to a failure to perform a
+    /// TLS handshake (e.g., the server certificate can't be verified). This
+    /// is a reserved value and MUST NOT be set as a status code in a Close
+    /// control frame by an endpoint.
     Tls,
-    #[doc(hidden)]
+
+    /// Reserved status codes.
     Reserved(u16),
-    #[doc(hidden)]
+
+    /// Reserved for use by libraries, frameworks, and applications. These
+    /// status codes are registered directly with IANA. The interpretation of
+    /// these codes is undefined by the `WebSocket` protocol.
     Iana(u16),
-    #[doc(hidden)]
+
+    /// Reserved for private use. These can't be registered and can be used by
+    /// prior agreements between WebSocket applications. The interpretation of
+    /// these codes is undefined by the `WebSocket` protocol.
     Library(u16),
-    #[doc(hidden)]
+
+    /// Unused / invalid status codes.
     Bad(u16),
 }
 
@@ -232,11 +251,9 @@ mod test {
         Deserialize,
         Serialize,
     };
+    use serde_json::Error;
 
-    use crate::{
-        Message,
-        Result,
-    };
+    use crate::Message;
 
     #[derive(Default, Serialize, Deserialize)]
     struct Content {
@@ -244,7 +261,7 @@ mod test {
     }
 
     #[test]
-    pub fn text_json() -> Result<()> {
+    pub fn text_json() -> Result<(), Error> {
         let content = Content::default();
         let message = Message::text_from_json(&content)?;
         assert!(matches!(message, Message::Text(_)));
@@ -254,7 +271,7 @@ mod test {
     }
 
     #[test]
-    pub fn binary_json() -> Result<()> {
+    pub fn binary_json() -> Result<(), Error> {
         let content = Content::default();
         let message = Message::binary_from_json(&content)?;
         assert!(matches!(message, Message::Binary(_)));

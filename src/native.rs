@@ -16,10 +16,10 @@ use crate::{
         CloseCode,
         Message,
     },
-    Result,
+    Error,
 };
 
-pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse> {
+pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
     let (client, request_result) = request_builder.build_split();
     let mut request = request_result?;
 
@@ -124,7 +124,7 @@ impl WebSocketResponse {
     pub async fn into_stream_and_protocol(
         self,
         protocols: Vec<String>,
-    ) -> Result<(WebSocketStream, Option<String>)> {
+    ) -> Result<(WebSocketStream, Option<String>), Error> {
         let headers = self.response.headers();
 
         if self.response.version() != self.version {

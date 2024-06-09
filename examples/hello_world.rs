@@ -5,13 +5,13 @@ use futures_util::{
 };
 use reqwest::Client;
 use reqwest_websocket::{
+    Error,
     Message,
     RequestBuilderExt,
-    Result,
 };
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Error> {
     let websocket = Client::default()
         .get("wss://echo.websocket.org/")
         .upgrade()
