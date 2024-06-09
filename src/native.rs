@@ -1,21 +1,12 @@
 use std::borrow::Cow;
 
 use reqwest::{
-    header::{
-        HeaderName,
-        HeaderValue,
-    },
-    RequestBuilder,
-    Response,
-    StatusCode,
-    Version,
+    header::{HeaderName, HeaderValue},
+    RequestBuilder, Response, StatusCode, Version,
 };
 
 use crate::{
-    protocol::{
-        CloseCode,
-        Message,
-    },
+    protocol::{CloseCode, Message},
     Error,
 };
 
@@ -149,8 +140,7 @@ impl WebSocketResponse {
                 }
                 .into());
             }
-        }
-        else {
+        } else {
             tracing::debug!("missing Connection header");
             return Err(HandshakeError::MissingHeader {
                 header: reqwest::header::CONNECTION,
@@ -171,8 +161,7 @@ impl WebSocketResponse {
                 }
                 .into());
             }
-        }
-        else {
+        } else {
             tracing::debug!("missing Upgrade header");
             return Err(HandshakeError::MissingHeader {
                 header: reqwest::header::UPGRADE,
@@ -195,8 +184,7 @@ impl WebSocketResponse {
                     }
                     .into());
                 }
-            }
-            else {
+            } else {
                 tracing::debug!("missing Sec-Websocket-Accept header");
                 return Err(HandshakeError::MissingHeader {
                     header: reqwest::header::SEC_WEBSOCKET_ACCEPT,

@@ -53,31 +53,15 @@ mod wasm;
 
 use std::{
     pin::Pin,
-    task::{
-        Context,
-        Poll,
-    },
+    task::{Context, Poll},
 };
 
-use futures_util::{
-    Sink,
-    SinkExt,
-    Stream,
-    StreamExt,
-};
+use futures_util::{Sink, SinkExt, Stream, StreamExt};
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(docsrs, doc(cfg(not(target_arch = "wasm32"))))]
 pub use native::HandshakeError;
-pub use protocol::{
-    CloseCode,
-    Message,
-};
-use reqwest::{
-    Client,
-    ClientBuilder,
-    IntoUrl,
-    RequestBuilder,
-};
+pub use protocol::{CloseCode, Message};
+use reqwest::{Client, ClientBuilder, IntoUrl, RequestBuilder};
 
 /// Errors returned by `reqwest_websocket`.
 #[derive(Debug, thiserror::Error)]
@@ -280,8 +264,7 @@ impl Stream for WebSocket {
                 Poll::Ready(Some(Ok(message))) => {
                     if let Ok(message) = message.try_into() {
                         return Poll::Ready(Some(Ok(message)));
-                    }
-                    else {
+                    } else {
                         // This won't convert pings, pongs, etc. but we
                         // don't care about those.
                     }
@@ -313,19 +296,10 @@ impl Sink<Message> for WebSocket {
 
 #[cfg(test)]
 mod tests {
-    use futures_util::{
-        SinkExt,
-        TryStreamExt,
-    };
+    use futures_util::{SinkExt, TryStreamExt};
     use reqwest::Client;
 
-    use super::{
-        websocket,
-        CloseCode,
-        Message,
-        RequestBuilderExt,
-        WebSocket,
-    };
+    use super::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
 
     async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";

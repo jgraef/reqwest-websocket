@@ -1,8 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{
-    de::DeserializeOwned,
-    Serialize,
-};
+use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(feature = "json")]
 use crate::Error;
@@ -247,11 +244,8 @@ impl From<u16> for CloseCode {
 #[cfg(test)]
 #[cfg(feature = "json")]
 mod test {
-    use serde::{
-        Deserialize,
-        Serialize,
-    };
     use crate::Error;
+    use serde::{Deserialize, Serialize};
 
     use crate::Message;
 

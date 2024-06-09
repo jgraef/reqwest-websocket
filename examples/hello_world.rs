@@ -1,14 +1,6 @@
-use futures_util::{
-    SinkExt,
-    StreamExt,
-    TryStreamExt,
-};
+use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use reqwest::Client;
-use reqwest_websocket::{
-    Error,
-    Message,
-    RequestBuilderExt,
-};
+use reqwest_websocket::{Error, Message, RequestBuilderExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

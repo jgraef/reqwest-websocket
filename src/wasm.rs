@@ -1,45 +1,18 @@
 use std::{
     pin::Pin,
-    task::{
-        Context,
-        Poll,
-    },
+    task::{Context, Poll},
 };
 
-use futures_util::{
-    Sink,
-    Stream,
-};
-use reqwest::{
-    Request,
-    Url,
-};
-use tokio::sync::{
-    mpsc,
-    oneshot,
-};
+use futures_util::{Sink, Stream};
+use reqwest::{Request, Url};
+use tokio::sync::{mpsc, oneshot};
 use web_sys::{
-    js_sys::{
-        Array,
-        ArrayBuffer,
-        JsString,
-        Uint8Array,
-    },
-    wasm_bindgen::{
-        closure::Closure,
-        JsCast,
-        JsValue,
-    },
-    CloseEvent,
-    ErrorEvent,
-    Event,
-    MessageEvent,
+    js_sys::{Array, ArrayBuffer, JsString, Uint8Array},
+    wasm_bindgen::{closure::Closure, JsCast, JsValue},
+    CloseEvent, ErrorEvent, Event, MessageEvent,
 };
 
-use crate::protocol::{
-    CloseCode,
-    Message,
-};
+use crate::protocol::{CloseCode, Message};
 
 #[derive(Debug, thiserror::Error)]
 pub enum WebSysError {
@@ -128,11 +101,9 @@ impl WebSysWebSocketStream {
                     let array = Uint8Array::new(&abuf);
                     let data = array.to_vec();
                     let _ = tx.send(Some(Ok(Message::Binary(data))));
-                }
-                else if let Ok(text) = event.data().dyn_into::<JsString>() {
+                } else if let Ok(text) = event.data().dyn_into::<JsString>() {
                     let _ = tx.send(Some(Ok(Message::Text(text.into()))));
-                }
-                else {
+                } else {
                     tracing::debug!(event = ?event.data(), "received unknown message event");
                 }
             })
@@ -154,8 +125,7 @@ impl WebSysWebSocketStream {
                         Ok(()) => return,
                         Err(error) => error,
                     }
-                }
-                else {
+                } else {
                     error
                 };
 
