@@ -24,7 +24,7 @@ async fn main() -> Result<(), Error> {
 
     while let Some(message) = rx.try_next().await? {
         if let Message::Text(text) = message {
-            println!("received: {text}")
+            println!("received: {text}");
         }
     }
 
