@@ -1,8 +1,10 @@
-# Next Version
+# Upcoming Version: 0.4.0
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
 The current changes need a *minor* version bump.
+
+- marked `Error` and `CloseCode` non-exhaustive. *breaking*
 
 - json: (#12 and #13)
   - add `json` feature (disabled by default).
