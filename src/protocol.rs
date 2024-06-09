@@ -79,6 +79,7 @@ impl Message {
 ///
 /// [1]: https://datatracker.ietf.org/doc/html/rfc6455
 #[derive(Debug, Default, Eq, PartialEq, Clone, Copy)]
+#[non_exhaustive]
 pub enum CloseCode {
     /// Indicates a normal closure, meaning that the purpose for
     /// which the connection was established has been fulfilled.
