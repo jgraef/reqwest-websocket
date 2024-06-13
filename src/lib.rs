@@ -45,6 +45,8 @@
 //! [1]: https://en.wikipedia.org/wiki/WebSocket
 //! [2]: https://docs.rs/reqwest/latest/reqwest/index.html
 
+#[cfg(feature = "json")]
+mod json;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 mod protocol;
@@ -56,11 +58,14 @@ use std::{
     task::{Context, Poll},
 };
 
-use futures_util::{Sink, SinkExt, Stream, StreamExt};
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+pub use crate::json::JsonError;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(docsrs, doc(cfg(not(target_arch = "wasm32"))))]
-pub use native::HandshakeError;
-pub use protocol::{CloseCode, Message};
+pub use crate::native::HandshakeError;
+pub use crate::protocol::{CloseCode, Message};
+use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use reqwest::{Client, ClientBuilder, IntoUrl, RequestBuilder};
 
 /// Errors returned by `reqwest_websocket`.
@@ -88,7 +93,7 @@ pub enum Error {
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     #[error("json error")]
-    Json(#[from] serde_json::Error),
+    Json(#[from] JsonError),
 }
 
 /// Opens a `WebSocket` connection at the specified `URL`.
@@ -262,11 +267,17 @@ impl Stream for WebSocket {
                 Poll::Ready(None) => return Poll::Ready(None),
                 Poll::Ready(Some(Err(error))) => return Poll::Ready(Some(Err(error.into()))),
                 Poll::Ready(Some(Ok(message))) => {
-                    if let Ok(message) = message.try_into() {
-                        return Poll::Ready(Some(Ok(message)));
-                    } else {
-                        // This won't convert pings, pongs, etc. but we
-                        // don't care about those.
+                    match message.try_into() {
+                        Ok(message) => return Poll::Ready(Some(Ok(message))),
+
+                        #[cfg(target_arch = "wasm32")]
+                        Err(e) => match e {},
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        Err(e) => {
+                            // this fails only for raw frames (which are not received)
+                            panic!("Received an invalid frame: {e}");
+                        }
                     }
                 }
             }
@@ -357,6 +368,25 @@ mod tests {
             .close(CloseCode::Protocol, Some("test"))
             .await
             .expect("close returned an error");
+    }
+
+    #[tokio::test]
+    async fn test_send_close_frame() {
+        let mut websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        websocket.send(Message::Close { code: CloseCode::Normal, reason: "Can you please reply with a close frame?".into() }).await.unwrap();
+
+        let mut close_received = false;
+        while let Some(message) = websocket.try_next().await.unwrap() {
+            match message {
+                Message::Close { code, .. } => {
+                    assert_eq!(code, CloseCode::Normal);
+                    close_received = true;
+                }
+                _ => {}
+            }
+        }
+
+        assert!(close_received, "No close frame was received");
     }
 
     #[test]

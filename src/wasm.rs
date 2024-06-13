@@ -137,9 +137,13 @@ impl WebSysWebSocketStream {
         // register close handler
         let on_close_callback = {
             let tx = tx.clone();
-            Closure::<dyn FnMut(CloseEvent)>::new(move |_event: CloseEvent| {
+            Closure::<dyn FnMut(CloseEvent)>::new(move |event: CloseEvent| {
                 tracing::debug!("received close event");
 
+                let _ = tx.send(Some(Ok(Message::Close {
+                    code: event.code().into(),
+                    reason: event.reason(),
+                })));
                 let _ = tx.send(None);
             })
         };
@@ -222,9 +226,15 @@ impl Sink<Message> for WebSysWebSocketStream {
 
     fn start_send(self: Pin<&mut Self>, item: Message) -> Result<(), Self::Error> {
         match item {
-            Message::Text(text) => self.inner.send_with_str(&text).map_err(Into::into),
-            Message::Binary(data) => self.inner.send_with_u8_array(&data).map_err(Into::into),
+            Message::Text(text) => self.inner.send_with_str(&text)?,
+            Message::Binary(data) => self.inner.send_with_u8_array(&data)?,
+            Message::Close { code, reason } => self.inner.close_with_code_and_reason(code.into(), &reason)?,
+            #[allow(deprecated)]
+            Message::Ping(_) | Message::Pong(_) => {
+                // ignored!
+            }
         }
+        Ok(())
     }
 
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {

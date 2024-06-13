@@ -1,73 +1,42 @@
-#[cfg(feature = "json")]
-use serde::{de::DeserializeOwned, Serialize};
-
-#[cfg(feature = "json")]
-use crate::Error;
-
 /// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
+    /// A text `WebSocket` message.
     Text(String),
+
+    /// A binary `WebSocket` message.
     Binary(Vec<u8>),
-}
 
-#[cfg(feature = "json")]
-impl Message {
-    /// Tries to serialize the JSON as a [`Message::Text`].
+    /// A ping message with the specified payload.
     ///
-    /// # Optional
+    /// The payload here must have a length less than 125 bytes.
     ///
-    /// This requires the optional `json` feature enabled.
+    /// # WASM
     ///
-    /// # Errors
-    ///
-    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
-    /// fail, or if `T` contains a map with non-string keys.
-    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
-        serde_json::to_string(json)
-            .map(Message::Text)
-            .map_err(Into::into)
-    }
+    /// This variant is ignored for WASM targets.
+    #[cfg_attr(
+        target_arch = "wasm32",
+        deprecated(note = "This variant is ignored for WASM targets")
+    )]
+    Ping(Vec<u8>),
 
-    /// Tries to serialize the JSON as a [`Message::Binary`].
+    /// A pong message with the specified payload.
     ///
-    /// # Optional
+    /// The payload here must have a length less than 125 bytes.
     ///
-    /// This requires that the optional `json` feature is enabled.
+    /// # WASM
     ///
-    /// # Errors
-    ///
-    /// Serialization can fail if `T`'s implementation of `Serialize` decides to
-    /// fail, or if `T` contains a map with non-string keys.
-    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
-        serde_json::to_vec(json)
-            .map(Message::Binary)
-            .map_err(Into::into)
-    }
+    /// This variant is ignored for WASM targets.
+    #[cfg_attr(
+        target_arch = "wasm32",
+        deprecated(note = "This variant is ignored for WASM targets")
+    )]
+    Pong(Vec<u8>),
 
-    /// Tries to deserialize the message body as JSON.
+    /// A close message.
     ///
-    /// # Optional
-    ///
-    /// This requires that the optional `json` feature is enabled.
-    ///
-    /// # Errors
-    ///
-    /// This method fails whenever the response body is not in `JSON` format,
-    /// or it cannot be properly deserialized to target type `T`.
-    ///
-    /// For more details please see [`serde_json::from_str`] and
-    /// [`serde_json::from_slice`].
-    #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
-        match self {
-            Self::Text(x) => serde_json::from_str(x),
-            Self::Binary(x) => serde_json::from_slice(x),
-        }
-        .map_err(Into::into)
-    }
+    /// Sending this will not close the connection. Use [`WebSocket::close`] for this. Though the remote peer will likely close the connection after receiving this.
+    Close { code: CloseCode, reason: String },
 }
 
 /// Status code used to indicate why an endpoint is closing the `WebSocket`

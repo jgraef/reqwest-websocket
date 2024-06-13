@@ -251,7 +251,18 @@ impl TryFrom<tungstenite::Message> for Message {
         match value {
             tungstenite::Message::Text(text) => Ok(Self::Text(text)),
             tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
-            _ => Err(FromTungsteniteMessageError { original: value }),
+            tungstenite::Message::Ping(data) => Ok(Self::Ping(data)),
+            tungstenite::Message::Pong(data) => Ok(Self::Pong(data)),
+            tungstenite::Message::Close(Some(tungstenite::protocol::CloseFrame {
+                code,
+                reason,
+            })) => Ok(Self::Close {
+                code: code.into(),
+                reason: reason.into_owned(),
+            }),
+            tungstenite::Message::Close(None) | tungstenite::Message::Frame(_) => {
+                Err(FromTungsteniteMessageError { original: value })
+            }
         }
     }
 }
@@ -261,6 +272,14 @@ impl From<Message> for tungstenite::Message {
         match value {
             Message::Text(text) => Self::Text(text),
             Message::Binary(data) => Self::Binary(data),
+            Message::Ping(data) => Self::Ping(data),
+            Message::Pong(data) => Self::Pong(data),
+            Message::Close { code, reason } => {
+                Self::Close(Some(tungstenite::protocol::CloseFrame {
+                    code: code.into(),
+                    reason: reason.into(),
+                }))
+            }
         }
     }
 }
