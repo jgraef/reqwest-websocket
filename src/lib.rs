@@ -53,10 +53,9 @@ mod protocol;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
-use std::task::ready;
 use std::{
     pin::Pin,
-    task::{Context, Poll},
+    task::{ready, Context, Poll},
 };
 
 #[cfg(feature = "json")]
