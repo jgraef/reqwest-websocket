@@ -68,10 +68,44 @@ impl Message {
     /// [`serde_json::from_slice`].
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
-        Ok(match self {
-            Self::Text(x) => serde_json::from_str(x)?,
-            Self::Binary(x) => serde_json::from_slice(x)?,
-            _ => return Err(JsonError::NeitherTextNorBinaryMessage.into()),
-        })
+        match self {
+            Self::Text(x) => serde_json::from_str(x).map_err(Into::into),
+            Self::Binary(x) => serde_json::from_slice(x).map_err(Into::into),
+            Self::Ping(_) | Self::Pong(_) | Self::Close { .. } => {
+                Err(JsonError::NeitherTextNorBinaryMessage.into())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use serde::{Deserialize, Serialize};
+
+    use crate::{Error, Message};
+
+    #[derive(Default, Serialize, Deserialize)]
+    struct Content {
+        message: String,
+    }
+
+    #[test]
+    pub fn text_json() -> Result<(), Error> {
+        let content = Content::default();
+        let message = Message::text_from_json(&content)?;
+        assert!(matches!(message, Message::Text(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
+    }
+
+    #[test]
+    pub fn binary_json() -> Result<(), Error> {
+        let content = Content::default();
+        let message = Message::binary_from_json(&content)?;
+        assert!(matches!(message, Message::Binary(_)));
+        let _: Content = message.json()?;
+
+        Ok(())
     }
 }

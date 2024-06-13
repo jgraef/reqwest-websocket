@@ -53,6 +53,7 @@ mod protocol;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
+use std::task::ready;
 use std::{
     pin::Pin,
     task::{Context, Poll},
@@ -261,23 +262,20 @@ impl Stream for WebSocket {
     type Item = Result<Message, Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        loop {
-            match self.inner.poll_next_unpin(cx) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(None) => return Poll::Ready(None),
-                Poll::Ready(Some(Err(error))) => return Poll::Ready(Some(Err(error.into()))),
-                Poll::Ready(Some(Ok(message))) => {
-                    match message.try_into() {
-                        Ok(message) => return Poll::Ready(Some(Ok(message))),
+        match ready!(self.inner.poll_next_unpin(cx)) {
+            None => Poll::Ready(None),
+            Some(Err(error)) => Poll::Ready(Some(Err(error.into()))),
+            Some(Ok(message)) => {
+                match message.try_into() {
+                    Ok(message) => Poll::Ready(Some(Ok(message))),
 
-                        #[cfg(target_arch = "wasm32")]
-                        Err(e) => match e {},
+                    #[cfg(target_arch = "wasm32")]
+                    Err(e) => match e {},
 
-                        #[cfg(not(target_arch = "wasm32"))]
-                        Err(e) => {
-                            // this fails only for raw frames (which are not received)
-                            panic!("Received an invalid frame: {e}");
-                        }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    Err(e) => {
+                        // this fails only for raw frames (which are not received)
+                        panic!("Received an invalid frame: {e}");
                     }
                 }
             }
