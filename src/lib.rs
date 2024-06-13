@@ -58,9 +58,6 @@ use std::{
     task::{ready, Context, Poll},
 };
 
-#[cfg(feature = "json")]
-#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-pub use crate::json::JsonError;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg_attr(docsrs, doc(cfg(not(target_arch = "wasm32"))))]
 pub use crate::native::HandshakeError;
@@ -90,10 +87,11 @@ pub enum Error {
     #[error("web_sys error")]
     WebSys(#[from] wasm::WebSysError),
 
+    /// Error during serialization/deserialization.
+    #[error("serde_json error")]
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
-    #[error("json error")]
-    Json(#[from] JsonError),
+    Json(#[from] serde_json::Error),
 }
 
 /// Opens a `WebSocket` connection at the specified `URL`.
