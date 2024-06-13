@@ -10,7 +10,7 @@ Thumbs.db
 /Cargo.lock
 /target
 
-# wasm-example
-/wasm-example/dist
-/wasm-example/target
-/wasm-example/Cargo.lock
+# wasm example
+/examples/wasm/dist
+/examples/wasm/target
+/examples/wasm/Cargo.lock
