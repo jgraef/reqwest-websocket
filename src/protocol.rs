@@ -39,6 +39,18 @@ pub enum Message {
     Close { code: CloseCode, reason: String },
 }
 
+impl From<String> for Message {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<Vec<u8>> for Message {
+    fn from(value: Vec<u8>) -> Self {
+        Self::Binary(value)
+    }
+}
+
 /// Status code used to indicate why an endpoint is closing the `WebSocket`
 /// connection.[1]
 ///
