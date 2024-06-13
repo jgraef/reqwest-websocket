@@ -37,6 +37,8 @@ pub enum Message {
     ///
     /// Sending this will not close the connection. Use [`WebSocket::close`] for this.
     /// Though the remote peer will likely close the connection after receiving this.
+    ///
+    /// [`WebSocket::close`]: crate::WebSocket::close
     Close { code: CloseCode, reason: String },
 }
 
