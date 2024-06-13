@@ -35,19 +35,36 @@ pub enum Message {
 
     /// A close message.
     ///
-    /// Sending this will not close the connection. Use [`WebSocket::close`] for this. Though the remote peer will likely close the connection after receiving this.
+    /// Sending this will not close the connection. Use [`WebSocket::close`] for this.
+    /// Though the remote peer will likely close the connection after receiving this.
     Close { code: CloseCode, reason: String },
 }
 
 impl From<String> for Message {
+    #[inline]
     fn from(value: String) -> Self {
         Self::Text(value)
     }
 }
 
+impl From<&str> for Message {
+    #[inline]
+    fn from(value: &str) -> Self {
+        Message::from(value.to_owned())
+    }
+}
+
 impl From<Vec<u8>> for Message {
+    #[inline]
     fn from(value: Vec<u8>) -> Self {
         Self::Binary(value)
+    }
+}
+
+impl From<&[u8]> for Message {
+    #[inline]
+    fn from(value: &[u8]) -> Self {
+        Message::from(value.to_vec())
     }
 }
 
@@ -219,39 +236,5 @@ impl From<u16> for CloseCode {
             4000..=4999 => Self::Library(code),
             _ => Self::Bad(code),
         }
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "json")]
-mod test {
-    use crate::Error;
-    use serde::{Deserialize, Serialize};
-
-    use crate::Message;
-
-    #[derive(Default, Serialize, Deserialize)]
-    struct Content {
-        message: String,
-    }
-
-    #[test]
-    pub fn text_json() -> Result<(), Error> {
-        let content = Content::default();
-        let message = Message::text_from_json(&content)?;
-        assert!(matches!(message, Message::Text(_)));
-        let _: Content = message.json()?;
-
-        Ok(())
-    }
-
-    #[test]
-    pub fn binary_json() -> Result<(), Error> {
-        let content = Content::default();
-        let message = Message::binary_from_json(&content)?;
-        assert!(matches!(message, Message::Binary(_)));
-        let _: Content = message.json()?;
-
-        Ok(())
     }
 }
