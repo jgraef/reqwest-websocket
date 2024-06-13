@@ -1,10 +1,13 @@
-# Upcoming Version: 0.4.0
+# Upcoming Version: 0.4.1
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
-The current changes need a *minor* version bump.
+The current changes need a *patch* version bump.
+
+# 0.4.0
 
 - marked `Error` and `CloseCode` non-exhaustive. *breaking*
+- added `Ping`, `Pong`, `Close` variants to `Message`
 
 - json: (#12 and #13)
   - add `json` feature (disabled by default).
