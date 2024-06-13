@@ -1,23 +1,6 @@
 use crate::{Error, Message};
 use serde::{de::DeserializeOwned, Serialize};
 
-#[derive(Debug, thiserror::Error)]
-pub enum JsonError {
-    /// Error during serialization/deserialization.
-    #[error("serde_json error")]
-    SerdeJson(#[from] serde_json::Error),
-
-    /// The message passed to [`Message::json`] is neither a text nor binary message, and thus can't be deserialized.
-    #[error("Can't deserialize message that is neither text nor binary.")]
-    NeitherTextNorBinaryMessage,
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(value: serde_json::Error) -> Self {
-        JsonError::from(value).into()
-    }
-}
-
 impl Message {
     /// Tries to serialize the JSON as a [`Message::Text`].
     ///
@@ -68,11 +51,12 @@ impl Message {
     /// [`serde_json::from_slice`].
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
+        use serde::de::Error as _;
         match self {
             Self::Text(x) => serde_json::from_str(x).map_err(Into::into),
             Self::Binary(x) => serde_json::from_slice(x).map_err(Into::into),
             Self::Ping(_) | Self::Pong(_) | Self::Close { .. } => {
-                Err(JsonError::NeitherTextNorBinaryMessage.into())
+                Err(serde_json::Error::custom("neither text nor binary").into())
             }
         }
     }
