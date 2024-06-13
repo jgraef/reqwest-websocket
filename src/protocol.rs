@@ -50,7 +50,7 @@ impl From<String> for Message {
 impl From<&str> for Message {
     #[inline]
     fn from(value: &str) -> Self {
-        Message::from(value.to_owned())
+        Self::from(value.to_owned())
     }
 }
 
@@ -64,7 +64,7 @@ impl From<Vec<u8>> for Message {
 impl From<&[u8]> for Message {
     #[inline]
     fn from(value: &[u8]) -> Self {
-        Message::from(value.to_vec())
+        Self::from(value.to_vec())
     }
 }
 
@@ -163,7 +163,7 @@ pub enum CloseCode {
     Iana(u16),
 
     /// Reserved for private use. These can't be registered and can be used by
-    /// prior agreements between WebSocket applications. The interpretation of
+    /// prior agreements between `WebSocket` applications. The interpretation of
     /// these codes is undefined by the `WebSocket` protocol.
     Library(u16),
 
