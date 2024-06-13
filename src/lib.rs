@@ -373,7 +373,13 @@ mod tests {
     #[tokio::test]
     async fn test_send_close_frame() {
         let mut websocket = websocket("https://echo.websocket.org/").await.unwrap();
-        websocket.send(Message::Close { code: CloseCode::Normal, reason: "Can you please reply with a close frame?".into() }).await.unwrap();
+        websocket
+            .send(Message::Close {
+                code: CloseCode::Normal,
+                reason: "Can you please reply with a close frame?".into(),
+            })
+            .await
+            .unwrap();
 
         let mut close_received = false;
         while let Some(message) = websocket.try_next().await.unwrap() {

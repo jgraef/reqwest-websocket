@@ -228,7 +228,9 @@ impl Sink<Message> for WebSysWebSocketStream {
         match item {
             Message::Text(text) => self.inner.send_with_str(&text)?,
             Message::Binary(data) => self.inner.send_with_u8_array(&data)?,
-            Message::Close { code, reason } => self.inner.close_with_code_and_reason(code.into(), &reason)?,
+            Message::Close { code, reason } => self
+                .inner
+                .close_with_code_and_reason(code.into(), &reason)?,
             #[allow(deprecated)]
             Message::Ping(_) | Message::Pong(_) => {
                 // ignored!
