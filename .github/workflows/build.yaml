@@ -6,6 +6,8 @@ on:
       - main
       - fix-ci # branch to debug and fix the CI :3
   pull_request:
+    branches:
+      - main
 
 jobs:
   ci:
@@ -29,13 +31,9 @@ jobs:
       - name: Set up Cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install & Run Semver
+      - name: Set up wasm-pack
         if: matrix.os == 'ubuntu-latest'
-        uses: obi1kenobi/cargo-semver-checks-action@v2
-        with:
-          rust-toolchain: ${{ matrix.toolchain }}
-          feature-group: all-features
-          verbose: true
+        uses: qmaru/wasm-pack-action@v0.5.0
 
       - name: Run Cargo:fmt
         run: cargo fmt --all -- --check
@@ -45,3 +43,15 @@ jobs:
 
       - name: Run Cargo:test
         run: cargo test --verbose --all-features
+
+      - name: Run WASM tests
+        if: matrix.os == 'ubuntu-latest'
+        run: wasm-pack test --chrome --headless -- --verbose --all-features
+
+      - name: Check Semver
+        if: matrix.os == 'ubuntu-latest'
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          rust-toolchain: ${{ matrix.toolchain }}
+          feature-group: all-features
+          verbose: true

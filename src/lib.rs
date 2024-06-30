@@ -236,6 +236,13 @@ impl WebSocket {
     }
 
     /// Closes the connection with a given code and (optional) reason.
+    ///
+    /// # WASM
+    ///
+    /// On wasm only `code` must be [`CloseCode::Normal`],
+    /// [`CloseCode::Iana(_)`], or [`CloseCode::Library(_)`]. Furthermore
+    /// `reason` must be at most 128 bytes long. Otherwise the call to
+    /// [`close`][Self::close] will fail.
     pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -301,9 +308,14 @@ impl Sink<Message> for WebSocket {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use futures_util::{SinkExt, TryStreamExt};
     use reqwest::Client;
+    #[cfg(target_arch = "wasm32")]
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
     use super::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
 
@@ -328,7 +340,8 @@ mod tests {
         panic!("didn't receive text back");
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_with_request_builder() {
         let websocket = Client::default()
             .get("https://echo.websocket.org/")
@@ -343,29 +356,33 @@ mod tests {
         test_websocket(websocket).await;
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_shorthand() {
         let websocket = websocket("https://echo.websocket.org/").await.unwrap();
         test_websocket(websocket).await;
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_with_ws_scheme() {
         let websocket = websocket("wss://echo.websocket.org/").await.unwrap();
 
         test_websocket(websocket).await;
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_close() {
         let websocket = websocket("https://echo.websocket.org/").await.unwrap();
         websocket
-            .close(CloseCode::Protocol, Some("test"))
+            .close(CloseCode::Normal, Some("test"))
             .await
             .expect("close returned an error");
     }
 
-    #[tokio::test]
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_send_close_frame() {
         let mut websocket = websocket("https://echo.websocket.org/").await.unwrap();
         websocket

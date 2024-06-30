@@ -2,7 +2,7 @@ use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use reqwest::Client;
 use reqwest_websocket::{Error, Message, RequestBuilderExt};
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
     let websocket = Client::default()
         .get("wss://echo.websocket.org/")
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Error> {
 
     let (mut tx, mut rx) = websocket.split();
 
-    tokio::spawn(async move {
+    tokio::task::spawn_local(async move {
         for i in 1..11 {
             tx.send(Message::Text(format!("Hello, World! #{i}")))
                 .await
