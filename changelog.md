@@ -4,6 +4,8 @@ Document new features here. Document whether your changes are *breaking* semver-
 
 The current changes need a *patch* version bump.
 
+- made `WebSocket` and `WebSysWebSocket` `Debug` (patch)
+
 # 0.4.0
 
 - marked `Error` and `CloseCode` non-exhaustive. *breaking*

@@ -219,6 +219,7 @@ impl UpgradeResponse {
 
 /// A `WebSocket` connection. Implements [`futures_util::Stream`] and
 /// [`futures_util::Sink`].
+#[derive(Debug)]
 pub struct WebSocket {
     #[cfg(not(target_arch = "wasm32"))]
     inner: native::WebSocketStream,

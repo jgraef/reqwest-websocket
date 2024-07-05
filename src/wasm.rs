@@ -41,6 +41,7 @@ impl From<JsValue> for WebSysError {
     }
 }
 
+#[derive(Debug)]
 pub struct WebSysWebSocketStream {
     inner: web_sys::WebSocket,
 
