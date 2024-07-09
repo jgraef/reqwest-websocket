@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix-ci # branch to debug and fix the CI :3
+      - develop
   pull_request:
     branches:
       - main
