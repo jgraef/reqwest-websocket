@@ -5,6 +5,7 @@ Document new features here. Document whether your changes are *breaking* semver-
 The current changes need a *patch* version bump.
 
 - made `WebSocket` and `WebSysWebSocket` `Debug` (patch)
+- bugfix #16 #18 (patch)
 
 # 0.4.0
 
