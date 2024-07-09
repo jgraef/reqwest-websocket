@@ -17,6 +17,8 @@ pub fn App() -> impl IntoView {
 
     spawn_local(async move {
         let websocket = reqwest_websocket::websocket("https://echo.websocket.org/").await.unwrap();
+        tracing::info!("WebSocket connected");
+        
         let (mut sender, mut receiver) = websocket.split();
 
         futures::join!(
