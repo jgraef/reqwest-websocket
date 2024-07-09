@@ -301,7 +301,6 @@ async fn run_websocket(
             }
             message_opt = outgoing_rx.next() => {
                 if let Some(Outgoing { message, ack_tx }) = message_opt {
-                    run_socket = !matches!(&message, Message::Close { .. });
                     let result = send_message(message);
                     let _ = ack_tx.send(result);
                 }
