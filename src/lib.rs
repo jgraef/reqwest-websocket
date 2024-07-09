@@ -327,16 +327,17 @@ pub mod tests {
 
     use super::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
 
-    macro_rules! assert_send_sync {
+    macro_rules! assert_send {
         ($ty:ty) => {
             const _: () = {
-                struct Assert<T: Send + Sync>(std::marker::PhantomData<T>);
+                struct Assert<T: Send>(std::marker::PhantomData<T>);
                 Assert::<$ty>(std::marker::PhantomData);
             };
         };
     }
 
-    assert_send_sync!(WebSocket);
+    // unfortunately hyper IO is not sync
+    assert_send!(WebSocket);
 
     async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
