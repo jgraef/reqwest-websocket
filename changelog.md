@@ -1,8 +1,10 @@
-# Upcoming Version: 0.4.1
+# Upcoming Version: 0.4.2
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
 The current changes need a *patch* version bump.
+
+# 0.4.1
 
 - made `WebSocket` and `WebSysWebSocket` `Debug` (patch)
 - bugfix #16 #18 (patch)
