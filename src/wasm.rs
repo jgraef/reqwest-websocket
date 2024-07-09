@@ -51,7 +51,7 @@ pub struct WebSysWebSocketStream {
     on_message_callback: Closure<dyn FnMut(MessageEvent)>,
 
     #[allow(dead_code)]
-    on_error_callback: Closure<dyn FnMut(ErrorEvent)>,
+    on_error_callback: Closure<dyn FnMut(Event)>,
 
     #[allow(dead_code)]
     on_close_callback: Closure<dyn FnMut(CloseEvent)>,
@@ -117,8 +117,11 @@ impl WebSysWebSocketStream {
         // channel is dropped, this uses the regular message channel
         let on_error_callback = {
             let tx = tx.clone();
-            Closure::<dyn FnMut(ErrorEvent)>::new(move |event: ErrorEvent| {
-                let error = event.into();
+            Closure::<dyn FnMut(Event)>::new(move |event: Event| {
+                let error = match event.dyn_into::<ErrorEvent>() {
+                    Ok(error) => WebSysError::from(error),
+                    Err(_event) => WebSysError::Unknown,
+                };
                 tracing::debug!("received error event: {error}");
 
                 let error = if let Some(open_error_tx) = open_error_tx.take() {
