@@ -10,7 +10,10 @@ use crate::{
     Error,
 };
 
-pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketResponse, Error> {
+pub async fn send_request(
+    request_builder: RequestBuilder,
+    protocols: &[String],
+) -> Result<WebSocketResponse, Error> {
     let (client, request_result) = request_builder.build_split();
     let mut request = request_result?;
 
@@ -51,6 +54,13 @@ pub async fn send_request(request_builder: RequestBuilder) -> Result<WebSocketRe
                 reqwest::header::SEC_WEBSOCKET_VERSION,
                 HeaderValue::from_static("13"),
             );
+            if !protocols.is_empty() {
+                headers.insert(
+                    reqwest::header::SEC_WEBSOCKET_PROTOCOL,
+                    HeaderValue::from_str(&protocols.join(", "))
+                        .expect("protocols is a invalid header value"),
+                );
+            }
 
             Some(nonce_value)
         }

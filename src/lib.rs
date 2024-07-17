@@ -154,10 +154,16 @@ impl UpgradedRequestBuilder {
         }
     }
 
+    pub fn protocols<S: AsRef<str>>(mut self, protocols: &[S]) -> Self {
+        self.protocols = protocols.iter().map(|s| s.as_ref().to_owned()).collect();
+
+        self
+    }
+
     /// Sends the request and returns an [`UpgradeResponse`].
     pub async fn send(self) -> Result<UpgradeResponse, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let inner = native::send_request(self.inner).await?;
+        let inner = native::send_request(self.inner, &self.protocols).await?;
 
         #[cfg(target_arch = "wasm32")]
         let inner = wasm::WebSysWebSocketStream::new(self.inner.build()?, &self.protocols).await?;
