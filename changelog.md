@@ -8,6 +8,7 @@ The current changes need a *patch* version bump.
 
 - made `WebSocket` and `WebSysWebSocket` `Debug` (patch)
 - bugfix #16 #18 (patch)
+- `UpgradedRequestBuilder::protocols` (patch)
 
 # 0.4.0
 
