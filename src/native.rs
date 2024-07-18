@@ -58,7 +58,7 @@ pub async fn send_request(
                 headers.insert(
                     reqwest::header::SEC_WEBSOCKET_PROTOCOL,
                     HeaderValue::from_str(&protocols.join(", "))
-                        .expect("protocols is a invalid header value"),
+                        .expect("protocols is an invalid header value"),
                 );
             }
 

@@ -154,8 +154,9 @@ impl UpgradedRequestBuilder {
         }
     }
 
-    pub fn protocols<S: AsRef<str>>(mut self, protocols: &[S]) -> Self {
-        self.protocols = protocols.iter().map(|s| s.as_ref().to_owned()).collect();
+    /// Selects which sub-protocols are accepted by the client.
+    pub fn protocols<S: Into<String>>(mut self, protocols: impl IntoIterator<Item = S>) -> Self {
+        self.protocols = protocols.into_iter().map(Into::into).collect();
 
         self
     }
@@ -411,6 +412,26 @@ pub mod tests {
         }
 
         assert!(close_received, "No close frame was received");
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
+    #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    #[ignore = "https://echo.websocket.org/ ignores subprotocols"]
+    async fn test_with_subprotocol() {
+        let websocket = Client::default()
+            .get("https://echo.websocket.org/")
+            .upgrade()
+            .protocols(["chat"])
+            .send()
+            .await
+            .unwrap()
+            .into_websocket()
+            .await
+            .unwrap();
+
+        assert_eq!(websocket.protocol(), Some("chat"));
+
+        test_websocket(websocket).await;
     }
 
     #[test]
