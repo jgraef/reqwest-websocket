@@ -4,11 +4,12 @@ Document new features here. Document whether your changes are *breaking* semver-
 
 The current changes need a *patch* version bump.
 
+- `UpgradedRequestBuilder::protocols` (patch)
+
 # 0.4.1
 
 - made `WebSocket` and `WebSysWebSocket` `Debug` (patch)
 - bugfix #16 #18 (patch)
-- `UpgradedRequestBuilder::protocols` (patch)
 
 # 0.4.0
 
