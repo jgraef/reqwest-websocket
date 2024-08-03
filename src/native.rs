@@ -270,9 +270,11 @@ impl TryFrom<tungstenite::Message> for Message {
                 code: code.into(),
                 reason: reason.into_owned(),
             }),
-            tungstenite::Message::Close(None) | tungstenite::Message::Frame(_) => {
-                Err(FromTungsteniteMessageError { original: value })
-            }
+            tungstenite::Message::Close(None) => Ok(Self::Close {
+                code: CloseCode::default(),
+                reason: "".to_owned(),
+            }),
+            tungstenite::Message::Frame(_) => Err(FromTungsteniteMessageError { original: value }),
         }
     }
 }
