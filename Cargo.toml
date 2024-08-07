@@ -23,7 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
-futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std", "async-await-macro"] }
+futures-channel = { version = "0.3", default-features = false, features = ["sink", "std"] }
 reqwest = { version = "0.12", default-features = false }
 thiserror = "1"
 tracing = "0.1"
@@ -37,14 +38,12 @@ tungstenite = { version = "0.23", default-features = false, features = ["handsha
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["WebSocket", "CloseEvent", "ErrorEvent", "Event", "MessageEvent", "BinaryType"] }
-tokio = { version = "1", default-features = false, features = ["sync", "macros"] }
+wasm-bindgen-futures = "0.4"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
 reqwest = { version = "0.12", features = ["default-tls"] }
 serde = { version = "1.0", features = ["derive"] }
-futures-util = { version = "0.3", default-features = false, features = ["sink", "alloc"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
-wasm-bindgen-futures = "0.4"
