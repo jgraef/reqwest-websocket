@@ -1,8 +1,10 @@
-# Upcoming Version: 0.4.2
+# Upcoming Version: 0.4.3
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
 The current changes need a *patch* version bump.
+
+# 0.4.2
 
 - `UpgradedRequestBuilder::protocols` (patch)
 - fix #24 (patch)
