@@ -1,8 +1,12 @@
-# Upcoming Version: 0.4.3
+# Upcoming Version: 0.4.4
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
 The current changes need a *patch* version bump.
+
+# 0.4.3
+
+ - Update `tungstenite` and `async-tungstenite` dependencies (#29)
 
 # 0.4.2
 
