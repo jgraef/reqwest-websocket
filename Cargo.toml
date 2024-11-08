@@ -25,7 +25,7 @@ json = ["dep:serde", "dep:serde_json"]
 [dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 reqwest = { version = "0.12", default-features = false }
-thiserror = "1"
+thiserror = "2"
 tracing = "0.1"
 serde = { version = "1.0", default-features = false, optional = true }
 serde_json = { version = "1.0", default-features = false, optional = true, features = ["alloc"] }
