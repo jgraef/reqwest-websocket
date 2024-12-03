@@ -2,6 +2,8 @@
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
+ - Added `UpgradedRequestBuilder::web_socket_config`
+
 The current changes need a *patch* version bump.
 
 # 0.4.3

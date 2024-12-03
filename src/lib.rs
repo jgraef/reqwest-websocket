@@ -222,7 +222,10 @@ impl UpgradeResponse {
     /// This checks if the `WebSocket` handshake was successful.
     pub async fn into_websocket(self) -> Result<WebSocket, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols, self.web_socket_config).await?;
+        let (inner, protocol) = self
+            .inner
+            .into_stream_and_protocol(self.protocols, self.web_socket_config)
+            .await?;
 
         #[cfg(target_arch = "wasm32")]
         let (inner, protocol) = {

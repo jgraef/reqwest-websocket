@@ -1,14 +1,14 @@
 use std::borrow::Cow;
 
+use crate::{
+    protocol::{CloseCode, Message},
+    Error,
+};
 use reqwest::{
     header::{HeaderName, HeaderValue},
     RequestBuilder, Response, StatusCode, Version,
 };
 use tungstenite::protocol::WebSocketConfig;
-use crate::{
-    protocol::{CloseCode, Message},
-    Error,
-};
 
 pub async fn send_request(
     request_builder: RequestBuilder,
