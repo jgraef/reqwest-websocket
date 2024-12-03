@@ -144,6 +144,8 @@ impl RequestBuilderExt for RequestBuilder {
 pub struct UpgradedRequestBuilder {
     inner: RequestBuilder,
     protocols: Vec<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    web_socket_config: Option<tungstenite::protocol::WebSocketConfig>,
 }
 
 impl UpgradedRequestBuilder {
@@ -151,6 +153,8 @@ impl UpgradedRequestBuilder {
         Self {
             inner,
             protocols: vec![],
+            #[cfg(not(target_arch = "wasm32"))]
+            web_socket_config: None,
         }
     }
 
@@ -158,6 +162,13 @@ impl UpgradedRequestBuilder {
     pub fn protocols<S: Into<String>>(mut self, protocols: impl IntoIterator<Item = S>) -> Self {
         self.protocols = protocols.into_iter().map(Into::into).collect();
 
+        self
+    }
+
+    /// Sets the WebSocket configuration.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn web_socket_config(mut self, config: tungstenite::protocol::WebSocketConfig) -> Self {
+        self.web_socket_config = Some(config);
         self
     }
 
@@ -172,6 +183,8 @@ impl UpgradedRequestBuilder {
         Ok(UpgradeResponse {
             inner,
             protocols: self.protocols,
+            #[cfg(not(target_arch = "wasm32"))]
+            web_socket_config: self.web_socket_config,
         })
     }
 }
@@ -189,6 +202,10 @@ pub struct UpgradeResponse {
 
     #[allow(dead_code)]
     protocols: Vec<String>,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[allow(dead_code)]
+    web_socket_config: Option<tungstenite::protocol::WebSocketConfig>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -205,7 +222,7 @@ impl UpgradeResponse {
     /// This checks if the `WebSocket` handshake was successful.
     pub async fn into_websocket(self) -> Result<WebSocket, Error> {
         #[cfg(not(target_arch = "wasm32"))]
-        let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols).await?;
+        let (inner, protocol) = self.inner.into_stream_and_protocol(self.protocols, self.web_socket_config).await?;
 
         #[cfg(target_arch = "wasm32")]
         let (inner, protocol) = {

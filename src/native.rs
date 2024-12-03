@@ -4,7 +4,7 @@ use reqwest::{
     header::{HeaderName, HeaderValue},
     RequestBuilder, Response, StatusCode, Version,
 };
-
+use tungstenite::protocol::WebSocketConfig;
 use crate::{
     protocol::{CloseCode, Message},
     Error,
@@ -125,6 +125,7 @@ impl WebSocketResponse {
     pub async fn into_stream_and_protocol(
         self,
         protocols: Vec<String>,
+        web_socket_config: Option<WebSocketConfig>,
     ) -> Result<(WebSocketStream, Option<String>), Error> {
         let headers = self.response.headers();
 
@@ -240,7 +241,7 @@ impl WebSocketResponse {
         let inner = WebSocketStream::from_raw_socket(
             self.response.upgrade().await?.compat(),
             tungstenite::protocol::Role::Client,
-            None,
+            web_socket_config,
         )
         .await;
 
