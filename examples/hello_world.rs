@@ -14,19 +14,23 @@ async fn main() -> Result<(), Error> {
 
     let (mut tx, mut rx) = websocket.split();
 
-    tokio::task::spawn_local(async move {
-        for i in 1..11 {
-            tx.send(Message::Text(format!("Hello, World! #{i}")))
-                .await
-                .unwrap();
-        }
-    });
-
-    while let Some(message) = rx.try_next().await? {
-        if let Message::Text(text) = message {
-            println!("received: {text}");
-        }
-    }
+    futures_util::future::join(
+        async move {
+            for i in 1..11 {
+                tx.send(Message::Text(format!("Hello, World! #{i}")))
+                    .await
+                    .unwrap();
+            }
+        },
+        async move {
+            while let Some(message) = rx.try_next().await.unwrap() {
+                if let Message::Text(text) = message {
+                    println!("received: {text}");
+                }
+            }
+        },
+    )
+    .await;
 
     Ok(())
 }
