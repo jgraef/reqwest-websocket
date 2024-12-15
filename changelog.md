@@ -1,8 +1,11 @@
-# Upcoming Version: 0.4.4
+# Upcoming Version: 0.4.5
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
+# 0.4.4
+
  - Added `UpgradedRequestBuilder::web_socket_config`
+ - Fixed issues with `async-tungstenite` and `futures-util` [#32][github_32], [#33][github_33]
 
 The current changes need a *patch* version bump.
 
@@ -40,3 +43,6 @@ The current changes need a *patch* version bump.
 # 0.3.0
 
 Start of changelog
+
+[github_32]: https://github.com/jgraef/reqwest-websocket/issues/32
+[github_33]: https://github.com/jgraef/reqwest-websocket/pull/33
