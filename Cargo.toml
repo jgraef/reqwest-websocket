@@ -23,7 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
-futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# pin version, see https://github.com/jgraef/reqwest-websocket/pull/33
+futures-util = { version = ">=0.3.31", default-features = false, features = ["sink"] }
 reqwest = { version = "0.12", default-features = false }
 thiserror = "2"
 tracing = "0.1"
