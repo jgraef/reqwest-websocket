@@ -73,17 +73,6 @@ impl WebSocket {
             return Err(Error::InvalidUrl(url));
         }
 
-        // create the websocket
-        let websocket = web_sys::WebSocket::new_with_str_sequence(
-            &url.to_string(),
-            &protocols
-                .into_iter()
-                .map(|s| JsString::from(s.to_owned()))
-                .collect::<Array>(),
-        )
-        .map_err(|_| Error::ConnectionFailed)?;
-        websocket.set_binary_type(web_sys::BinaryType::Arraybuffer);
-
         // outgoing channel. only needs a capacity of 1, as we wait for acks anyway
         let (outgoing_tx, outgoing_rx) = mpsc::channel(1);
 
@@ -93,13 +82,27 @@ impl WebSocket {
         // channel for connect acks. message type: `Result<String, Error>`, where `String` is the protocol reported by the websocket
         let (connect_ack_tx, connect_ack_rx) = oneshot::channel();
 
-        // spawn a task for the websocket locally. this way our `WebSocket` struct is `Send + Sync`, while the code that has the
-        // `web_sys::Websocket` (which is not `Send + Sync`) stays on the same thread.
-        tracing::debug!("spawning websocket task");
-        let task_span = tracing::info_span!("websocket");
-        wasm_bindgen_futures::spawn_local(
-            run_websocket(websocket, connect_ack_tx, outgoing_rx, incoming_tx).instrument(task_span),
-        );
+        // create the websocket
+        {
+            let websocket = web_sys::WebSocket::new_with_str_sequence(
+                &url.to_string(),
+                &protocols
+                    .into_iter()
+                    .map(|s| JsString::from(s.to_owned()))
+                    .collect::<Array>(),
+            )
+            .map_err(|_| Error::ConnectionFailed)?;
+            websocket.set_binary_type(web_sys::BinaryType::Arraybuffer);
+
+            // spawn a task for the websocket locally. this way our `WebSocket` struct is `Send + Sync`, while the code that has the
+            // `web_sys::Websocket` (which is not `Send + Sync`) stays on the same thread.
+            tracing::debug!("spawning websocket task");
+            let task_span = tracing::info_span!("websocket");
+            wasm_bindgen_futures::spawn_local(
+                run_websocket(websocket, connect_ack_tx, outgoing_rx, incoming_tx)
+                    .instrument(task_span),
+            );
+        }
 
         // wait for connection ack, or error
         tracing::debug!("waiting for ack");

@@ -490,9 +490,17 @@ pub mod tests {
         assert_eq!(u16::from(text), 1001u16);
     }
 
-    // assert that our types are Send + Sync
-    trait AssertSendSync: Send + Sync {}
-    impl AssertSendSync for UpgradedRequestBuilder {}
-    impl AssertSendSync for UpgradeResponse {}
-    impl AssertSendSync for WebSocket {}
+    #[test]
+    fn assert_send() {
+        // assert that our types are Send
+        trait AssertSend: Send {}
+        impl AssertSend for UpgradedRequestBuilder {}
+        impl AssertSend for UpgradeResponse {}
+        impl AssertSend for WebSocket {}
+
+        fn assert_send<T: Send>(_value: T) {}
+
+        let connect_fut = websocket("https://echo.websocket.org/");
+        assert_send(connect_fut);
+    }
 }
