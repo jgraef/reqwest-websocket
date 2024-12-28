@@ -85,7 +85,7 @@ pub enum Error {
     #[cfg(target_arch = "wasm32")]
     #[cfg_attr(docsrs, doc(cfg(target_arch = "wasm32")))]
     #[error("web_sys error")]
-    WebSys(#[from] wasm::WebSysError),
+    WebSys(#[from] wasm::Error),
 
     /// Error during serialization/deserialization.
     #[error("serde_json error")]
@@ -178,7 +178,7 @@ impl UpgradedRequestBuilder {
         let inner = native::send_request(self.inner, &self.protocols).await?;
 
         #[cfg(target_arch = "wasm32")]
-        let inner = wasm::WebSysWebSocketStream::new(self.inner.build()?, &self.protocols).await?;
+        let inner = wasm::WebSocket::new(self.inner.build()?, &self.protocols).await?;
 
         Ok(UpgradeResponse {
             inner,
@@ -198,7 +198,7 @@ pub struct UpgradeResponse {
     inner: native::WebSocketResponse,
 
     #[cfg(target_arch = "wasm32")]
-    inner: wasm::WebSysWebSocketStream,
+    inner: wasm::WebSocket,
 
     #[allow(dead_code)]
     protocols: Vec<String>,
@@ -229,7 +229,7 @@ impl UpgradeResponse {
 
         #[cfg(target_arch = "wasm32")]
         let (inner, protocol) = {
-            let protocol = self.inner.protocol();
+            let protocol = self.inner.protocol().to_owned();
             (self.inner, Some(protocol))
         };
 
@@ -252,7 +252,7 @@ pub struct WebSocket {
     inner: native::WebSocketStream,
 
     #[cfg(target_arch = "wasm32")]
-    inner: wasm::WebSysWebSocketStream,
+    inner: wasm::WebSocket,
 
     protocol: Option<String>,
 }
@@ -283,7 +283,15 @@ impl WebSocket {
         }
 
         #[cfg(target_arch = "wasm32")]
-        self.inner.close(code.into(), reason.unwrap_or_default())?;
+        {
+            let mut inner = self.inner;
+            inner
+                .send(Message::Close {
+                    code,
+                    reason: reason.unwrap_or_default().to_owned(),
+                })
+                .await?;
+        }
 
         Ok(())
     }
@@ -344,7 +352,21 @@ pub mod tests {
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+    use crate::{UpgradeResponse, UpgradedRequestBuilder};
+
     use super::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
+
+    macro_rules! assert_send {
+        ($ty:ty) => {
+            const _: () = {
+                struct Assert<T: Send>(std::marker::PhantomData<T>);
+                Assert::<$ty>(std::marker::PhantomData);
+            };
+        };
+    }
+
+    // unfortunately hyper IO is not sync
+    assert_send!(WebSocket);
 
     async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
@@ -466,5 +488,19 @@ pub mod tests {
         let byte: u16 = text.into();
         assert_eq!(byte, 1001u16);
         assert_eq!(u16::from(text), 1001u16);
+    }
+
+    #[test]
+    fn assert_send() {
+        // assert that our types are Send
+        trait AssertSend: Send {}
+        impl AssertSend for UpgradedRequestBuilder {}
+        impl AssertSend for UpgradeResponse {}
+        impl AssertSend for WebSocket {}
+
+        fn assert_send<T: Send>(_value: T) {}
+
+        let connect_fut = websocket("https://echo.websocket.org/");
+        assert_send(connect_fut);
     }
 }
