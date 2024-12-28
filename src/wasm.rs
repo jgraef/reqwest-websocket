@@ -96,7 +96,6 @@ impl WebSocket {
 
             // spawn a task for the websocket locally. this way our `WebSocket` struct is `Send + Sync`, while the code that has the
             // `web_sys::Websocket` (which is not `Send + Sync`) stays on the same thread.
-            tracing::debug!("spawning websocket task");
             let task_span = tracing::info_span!("websocket");
             wasm_bindgen_futures::spawn_local(
                 run_websocket(websocket, connect_ack_tx, outgoing_rx, incoming_tx)
@@ -105,11 +104,9 @@ impl WebSocket {
         }
 
         // wait for connection ack, or error
-        tracing::debug!("waiting for ack");
         let protocol = connect_ack_rx
             .await
             .expect("websocket handler dropped ack sender")?;
-        tracing::debug!("ack received");
 
         Ok(Self {
             outgoing_tx,
@@ -140,14 +137,6 @@ impl Stream for WebSocket {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.incoming_rx
             .poll_next_unpin(cx)
-            .map_ok(|message| {
-                tracing::debug!("message: {message:?}");
-                message
-            })
-            .map_err(|e| {
-                tracing::error!("receive error: {e}");
-                e
-            })
     }
 }
 
@@ -193,7 +182,6 @@ async fn run_websocket(
     // happen during opening. once that has been used, or the oneshot
     // channel is dropped, this uses the regular message channel
     let on_error_callback = {
-        tracing::debug!("error event");
         Closure::<dyn FnMut(Event)>::new(move |event: Event| {
             let error = match event.dyn_into::<ErrorEvent>() {
                 Ok(error) => Error::from(error),
@@ -210,12 +198,13 @@ async fn run_websocket(
         let incoming_tx = incoming_tx.clone();
 
         Closure::<dyn FnMut(CloseEvent)>::new(move |event: CloseEvent| {
-            tracing::debug!("close event");
             if let Some(close_tx) = close_tx.take() {
-                let _ = incoming_tx.unbounded_send(Ok(Message::Close {
+                let message = Message::Close {
                     code: event.code().into(),
                     reason: event.reason(),
-                }));
+                };
+                tracing::debug!(?message, "received close");
+                let _ = incoming_tx.unbounded_send(Ok(message));
                 let _ = close_tx.send(());
             }
         })
@@ -227,7 +216,6 @@ async fn run_websocket(
         let mut open_tx = Some(open_tx);
 
         Closure::<dyn FnMut(Event)>::new(move |_event: Event| {
-            tracing::debug!("open event");
             if let Some(open_tx) = open_tx.take() {
                 let _ = open_tx.send(());
             }
@@ -240,7 +228,6 @@ async fn run_websocket(
         let incoming_tx = incoming_tx.clone();
 
         Closure::<dyn FnMut(MessageEvent)>::new(move |event: MessageEvent| {
-            tracing::debug!("message event");
             if let Ok(abuf) = event.data().dyn_into::<ArrayBuffer>() {
                 let array = Uint8Array::new(&abuf);
                 let data = array.to_vec();
@@ -277,20 +264,6 @@ async fn run_websocket(
     // connection established. listen for close/error events and outgoing messages
     while run_socket {
         select_biased! {
-            _ = &mut close_rx => {
-                // close event received
-                // the event handler takes care of sending the close frame into incoming_tx
-                run_socket = false;
-            }
-            error_opt = error_rx.next() => {
-                // error event received
-                if let Some(error) = error_opt {
-                    if incoming_tx.unbounded_send(Err(error)).is_err() {
-                        // receiver half dropped
-                        run_socket = false;
-                    }
-                }
-            }
             message_opt = outgoing_rx.next() => {
                 if let Some(Outgoing { message, ack_tx }) = message_opt {
                     let result = send_message(&websocket, message);
@@ -298,13 +271,33 @@ async fn run_websocket(
                 }
                 else {
                     // sender half dropped
+                    tracing::debug!("sender dropped. closing websocket");
                     run_socket = false;
                 }
+            }
+            error_opt = error_rx.next() => {
+                // error event received
+                if let Some(error) = error_opt {
+                    tracing::debug!(%error, "websocket error");
+                    if incoming_tx.unbounded_send(Err(error)).is_err() {
+                        // receiver half dropped
+                        run_socket = false;
+                    }
+                }
+                else {
+                    panic!("error channel closed unexpectedly");
+                }
+            }
+            _ = &mut close_rx => {
+                // close event received
+                // the event handler takes care of sending the close frame into incoming_tx
+                run_socket = false;
             }
         }
     }
 
     // cleanup
+    tracing::debug!("closing websocket");
     let _ = websocket.close();
     websocket.set_onmessage(None);
     websocket.set_onclose(None);
