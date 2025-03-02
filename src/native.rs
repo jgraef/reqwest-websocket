@@ -260,16 +260,16 @@ impl TryFrom<tungstenite::Message> for Message {
 
     fn try_from(value: tungstenite::Message) -> Result<Self, Self::Error> {
         match value {
-            tungstenite::Message::Text(text) => Ok(Self::Text(text)),
-            tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
-            tungstenite::Message::Ping(data) => Ok(Self::Ping(data)),
-            tungstenite::Message::Pong(data) => Ok(Self::Pong(data)),
+            tungstenite::Message::Text(text) => Ok(Self::Text(text.as_str().to_owned())),
+            tungstenite::Message::Binary(data) => Ok(Self::Binary(data.to_vec())),
+            tungstenite::Message::Ping(data) => Ok(Self::Ping(data.to_vec())),
+            tungstenite::Message::Pong(data) => Ok(Self::Pong(data.to_vec())),
             tungstenite::Message::Close(Some(tungstenite::protocol::CloseFrame {
                 code,
                 reason,
             })) => Ok(Self::Close {
                 code: code.into(),
-                reason: reason.into_owned(),
+                reason: reason.as_str().to_owned(),
             }),
             tungstenite::Message::Close(None) => Ok(Self::Close {
                 code: CloseCode::default(),
@@ -283,10 +283,10 @@ impl TryFrom<tungstenite::Message> for Message {
 impl From<Message> for tungstenite::Message {
     fn from(value: Message) -> Self {
         match value {
-            Message::Text(text) => Self::Text(text),
-            Message::Binary(data) => Self::Binary(data),
-            Message::Ping(data) => Self::Ping(data),
-            Message::Pong(data) => Self::Pong(data),
+            Message::Text(text) => Self::Text(tungstenite::Utf8Bytes::from(text)),
+            Message::Binary(data) => Self::Binary(tungstenite::Bytes::from(data)),
+            Message::Ping(data) => Self::Ping(tungstenite::Bytes::from(data)),
+            Message::Pong(data) => Self::Pong(tungstenite::Bytes::from(data)),
             Message::Close { code, reason } => {
                 Self::Close(Some(tungstenite::protocol::CloseFrame {
                     code: code.into(),
