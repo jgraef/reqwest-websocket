@@ -9,6 +9,7 @@ Thumbs.db
 # Rust
 /Cargo.lock
 /target
+/.cargo
 
 # wasm example
 /examples/wasm/dist

@@ -261,9 +261,9 @@ impl TryFrom<tungstenite::Message> for Message {
     fn try_from(value: tungstenite::Message) -> Result<Self, Self::Error> {
         match value {
             tungstenite::Message::Text(text) => Ok(Self::Text(text.as_str().to_owned())),
-            tungstenite::Message::Binary(data) => Ok(Self::Binary(data.to_vec())),
-            tungstenite::Message::Ping(data) => Ok(Self::Ping(data.to_vec())),
-            tungstenite::Message::Pong(data) => Ok(Self::Pong(data.to_vec())),
+            tungstenite::Message::Binary(data) => Ok(Self::Binary(data)),
+            tungstenite::Message::Ping(data) => Ok(Self::Ping(data)),
+            tungstenite::Message::Pong(data) => Ok(Self::Pong(data)),
             tungstenite::Message::Close(Some(tungstenite::protocol::CloseFrame {
                 code,
                 reason,

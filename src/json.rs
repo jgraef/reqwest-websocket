@@ -15,7 +15,7 @@ impl Message {
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
         serde_json::to_string(json)
-            .map(Message::Text)
+            .map(|text| Message::Text(text.into()))
             .map_err(Into::into)
     }
 
@@ -32,7 +32,7 @@ impl Message {
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn binary_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
         serde_json::to_vec(json)
-            .map(Message::Binary)
+            .map(|data| Message::Binary(data.into()))
             .map_err(Into::into)
     }
 

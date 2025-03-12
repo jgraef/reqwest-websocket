@@ -1,11 +1,14 @@
+use bytes::Bytes;
+
 /// A `WebSocket` message, which can be a text string or binary data.
 #[derive(Clone, Debug)]
 pub enum Message {
     /// A text `WebSocket` message.
+    // note: we can't use `tungstenite::Utf8String` here, since we don't have tungstenite on wasm.
     Text(String),
 
     /// A binary `WebSocket` message.
-    Binary(Vec<u8>),
+    Binary(Bytes),
 
     /// A ping message with the specified payload.
     ///
@@ -18,7 +21,7 @@ pub enum Message {
         target_arch = "wasm32",
         deprecated(note = "This variant is ignored for WASM targets")
     )]
-    Ping(Vec<u8>),
+    Ping(Bytes),
 
     /// A pong message with the specified payload.
     ///
@@ -31,7 +34,7 @@ pub enum Message {
         target_arch = "wasm32",
         deprecated(note = "This variant is ignored for WASM targets")
     )]
-    Pong(Vec<u8>),
+    Pong(Bytes),
 
     /// A close message.
     ///
@@ -56,17 +59,24 @@ impl From<&str> for Message {
     }
 }
 
+impl From<Bytes> for Message {
+    #[inline]
+    fn from(value: Bytes) -> Self {
+        Self::Binary(value)
+    }
+}
+
 impl From<Vec<u8>> for Message {
     #[inline]
     fn from(value: Vec<u8>) -> Self {
-        Self::Binary(value)
+        Self::from(Bytes::from(value))
     }
 }
 
 impl From<&[u8]> for Message {
     #[inline]
     fn from(value: &[u8]) -> Self {
-        Self::from(value.to_vec())
+        Self::from(Bytes::copy_from_slice(value))
     }
 }
 

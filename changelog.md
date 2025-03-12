@@ -5,6 +5,7 @@ Document new features here. Document whether your changes are *breaking* semver-
 # 0.5.0
 
  - Update `tungstenite` to 0.26.0
+ - Change `Message` struct to use `bytes::Bytes`
 
 # 0.4.4
 

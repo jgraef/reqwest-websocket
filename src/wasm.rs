@@ -101,7 +101,7 @@ impl WebSysWebSocketStream {
                 if let Ok(abuf) = event.data().dyn_into::<ArrayBuffer>() {
                     let array = Uint8Array::new(&abuf);
                     let data = array.to_vec();
-                    let _ = tx.send(Some(Ok(Message::Binary(data))));
+                    let _ = tx.send(Some(Ok(Message::Binary(data.into()))));
                 } else if let Ok(text) = event.data().dyn_into::<JsString>() {
                     let _ = tx.send(Some(Ok(Message::Text(text.into()))));
                 } else {

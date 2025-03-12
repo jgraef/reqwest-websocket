@@ -78,7 +78,7 @@ pub fn App() -> impl IntoView {
                                         <div class="card bg-light bg-gradient mb-3 bx-3 w-75 me-auto">
                                             <div class="card-header">"Server"</div>
                                             <div class="card-body">
-                                                <p class="card-text">{message}</p>
+                                                <p class="card-text">{message.to_string()}</p>
                                             </div>
                                         </div>
                                     }

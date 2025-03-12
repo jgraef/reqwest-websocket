@@ -62,6 +62,7 @@ use std::{
 #[cfg_attr(docsrs, doc(cfg(not(target_arch = "wasm32"))))]
 pub use crate::native::HandshakeError;
 pub use crate::protocol::{CloseCode, Message};
+pub use bytes::Bytes;
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use reqwest::{Client, ClientBuilder, IntoUrl, RequestBuilder};
 
@@ -348,10 +349,7 @@ pub mod tests {
 
     async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
-        websocket
-            .send(Message::Text(text.to_owned()))
-            .await
-            .unwrap();
+        websocket.send(Message::Text(text.into())).await.unwrap();
 
         while let Some(message) = websocket.try_next().await.unwrap() {
             match message {

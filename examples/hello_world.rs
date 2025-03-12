@@ -17,9 +17,7 @@ async fn main() -> Result<(), Error> {
     futures_util::future::join(
         async move {
             for i in 1..11 {
-                tx.send(Message::Text(format!("Hello, World! #{i}")))
-                    .await
-                    .unwrap();
+                tx.send(format!("Hello, World! #{i}").into()).await.unwrap();
             }
         },
         async move {
