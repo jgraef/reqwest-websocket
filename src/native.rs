@@ -284,9 +284,9 @@ impl From<Message> for tungstenite::Message {
     fn from(value: Message) -> Self {
         match value {
             Message::Text(text) => Self::Text(tungstenite::Utf8Bytes::from(text)),
-            Message::Binary(data) => Self::Binary(tungstenite::Bytes::from(data)),
-            Message::Ping(data) => Self::Ping(tungstenite::Bytes::from(data)),
-            Message::Pong(data) => Self::Pong(tungstenite::Bytes::from(data)),
+            Message::Binary(data) => Self::Binary(data),
+            Message::Ping(data) => Self::Ping(data),
+            Message::Pong(data) => Self::Pong(data),
             Message::Close { code, reason } => {
                 Self::Close(Some(tungstenite::protocol::CloseFrame {
                     code: code.into(),

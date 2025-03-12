@@ -15,7 +15,7 @@ impl Message {
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
     pub fn text_from_json<T: Serialize + ?Sized>(json: &T) -> Result<Self, Error> {
         serde_json::to_string(json)
-            .map(|text| Message::Text(text.into()))
+            .map(Message::Text)
             .map_err(Into::into)
     }
 
