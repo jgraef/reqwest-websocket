@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// note: the tungstenite error variant got bigger, so now clippy complains. but it's only 136 bytes, so I think it's fine. Boxing this would require a breaking change.
+#![allow(clippy::result_large_err)]
 
 //! Provides wrappers for [`reqwest`][2] to enable [`WebSocket`][1] connections.
 //!
