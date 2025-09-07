@@ -66,7 +66,13 @@ pub use crate::native::HandshakeError;
 pub use crate::protocol::{CloseCode, Message};
 pub use bytes::Bytes;
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
-use reqwest::{Client, ClientBuilder, IntoUrl, RequestBuilder};
+use reqwest::{IntoUrl};
+
+#[cfg(not(feature = "middleware"))]
+use reqwest::{RequestBuilder, ClientBuilder, Client};
+
+#[cfg(feature = "middleware")]
+use reqwest_middleware::{RequestBuilder, ClientBuilder, ClientWithMiddleware as Client};
 
 /// Errors returned by `reqwest_websocket`.
 #[derive(Debug, thiserror::Error)]
@@ -104,21 +110,45 @@ pub enum Error {
 ///
 /// [`Request`]: reqwest::Request
 /// [`Response`]: reqwest::Response
-pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
-    builder_http1_only(Client::builder())
-        .build()?
-        .get(url)
-        .upgrade()
-        .send()
-        .await?
-        .into_websocket()
-        .await
+pub async fn websocket(url: impl IntoUrl) -> anyhow::Result<WebSocket> {
+    #[cfg(not(feature = "middleware"))]
+    {
+        builder_http1_only(Client::builder())
+            .build()?
+            .get(url)
+            .upgrade()
+            .send()
+            .await?
+            .into_websocket()
+            .await
+    }
+
+    #[cfg(feature = "middleware")]
+    {
+        builder_http1_only(ClientBuilder::from_client(Client::default()))
+            .build()
+            .get(url)
+            .upgrade()
+            .send()
+            .await?
+            .into_websocket()
+            .await
+    }
 }
 
 #[inline]
 #[cfg(not(target_arch = "wasm32"))]
 fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
-    builder.http1_only()
+    #[cfg(not(feature = "middleware"))]
+    {
+        builder.http1_only()
+    }
+
+    // TODO: use HTTP1 (not possible for the moment I guess)
+    #[cfg(feature = "middleware")]
+    {
+        builder
+    }
 }
 
 #[inline]
@@ -176,7 +206,7 @@ impl UpgradedRequestBuilder {
     }
 
     /// Sends the request and returns an [`UpgradeResponse`].
-    pub async fn send(self) -> Result<UpgradeResponse, Error> {
+    pub async fn send(self) -> anyhow::Result<UpgradeResponse> {
         #[cfg(not(target_arch = "wasm32"))]
         let inner = native::send_request(self.inner, &self.protocols).await?;
 
@@ -223,7 +253,7 @@ impl std::ops::Deref for UpgradeResponse {
 impl UpgradeResponse {
     /// Turns the response into a `WebSocket`.
     /// This checks if the `WebSocket` handshake was successful.
-    pub async fn into_websocket(self) -> Result<WebSocket, Error> {
+    pub async fn into_websocket(self) -> anyhow::Result<WebSocket> {
         #[cfg(not(target_arch = "wasm32"))]
         let (inner, protocol) = self
             .inner
@@ -273,11 +303,10 @@ impl WebSocket {
     /// On wasm `code` must be [`CloseCode::Normal`], [`CloseCode::Iana(_)`],
     /// or [`CloseCode::Library(_)`]. Furthermore `reason` must be at most 123
     /// bytes long. Otherwise the call to [`close`][Self::close] will fail.
-    pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
+    pub async fn close(&mut self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut inner = self.inner;
-            inner
+            self.inner
                 .close(Some(tungstenite::protocol::CloseFrame {
                     code: code.into(),
                     reason: reason.unwrap_or_default().into(),
@@ -340,7 +369,14 @@ impl Sink<Message> for WebSocket {
 #[cfg(test)]
 pub mod tests {
     use futures_util::{SinkExt, TryStreamExt};
+
+    #[cfg(not(feature = "middleware"))]
     use reqwest::Client;
+
+    #[cfg(feature = "middleware")]
+    use reqwest_middleware::ClientWithMiddleware as Client;
+
+
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 

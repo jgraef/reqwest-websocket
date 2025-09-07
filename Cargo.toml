@@ -21,12 +21,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 json = ["dep:serde", "dep:serde_json"]
+middleware = ["reqwest-middleware"]
 
 [dependencies]
 # pin version, see https://github.com/jgraef/reqwest-websocket/pull/33
 futures-util = { version = ">=0.3.31", default-features = false, features = ["sink"] }
 reqwest = { version = "0.12", default-features = false }
+reqwest-middleware = { version = "0.4.2", default-features = false, optional = true }
 thiserror = "2"
+anyhow = "1.0.99"
 tracing = "0.1"
 serde = { version = "1.0", default-features = false, optional = true }
 serde_json = { version = "1.0", default-features = false, optional = true, features = ["alloc"] }
@@ -39,7 +42,7 @@ tungstenite = { version = "0.27", default-features = false, features = ["handsha
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["WebSocket", "CloseEvent", "ErrorEvent", "Event", "MessageEvent", "BinaryType"] }
-tokio = { version = "1", default-features = false, features = ["sync", "macros"] }
+tokio = { version = "1", default-features = false, features = ["sync", "macros", "io-util"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

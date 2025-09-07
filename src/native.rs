@@ -6,14 +6,20 @@ use crate::{
 };
 use reqwest::{
     header::{HeaderName, HeaderValue},
-    RequestBuilder, Response, StatusCode, Version,
+    Response, StatusCode, Version,
 };
 use tungstenite::protocol::WebSocketConfig;
+
+#[cfg(not(feature = "middleware"))]
+use reqwest::RequestBuilder;
+
+#[cfg(feature = "middleware")]
+use reqwest_middleware::RequestBuilder;
 
 pub async fn send_request(
     request_builder: RequestBuilder,
     protocols: &[String],
-) -> Result<WebSocketResponse, Error> {
+) -> anyhow::Result<WebSocketResponse> {
     let (client, request_result) = request_builder.build_split();
     let mut request = request_result?;
 
@@ -83,8 +89,7 @@ pub async fn send_request(
     })
 }
 
-pub type WebSocketStream =
-    async_tungstenite::WebSocketStream<tokio_util::compat::Compat<reqwest::Upgraded>>;
+pub type WebSocketStream = async_tungstenite::WebSocketStream<tokio_util::compat::Compat<reqwest::Upgraded>>;
 
 /// Error during `Websocket` handshake.
 #[derive(Debug, thiserror::Error)]
