@@ -1,8 +1,8 @@
 [package]
-name = "reqwest-websocket"
-version = "0.5.1"
+name = "reqwest-websocket-julien-cpsn"
+version = "0.6.0"
 edition = "2021"
-authors = ["Janosch Gräf <janosch.graef@gmail.com>"]
+authors = ["Janosch Gräf <janosch.graef@gmail.com>", "julien-cpsn"]
 description = "WebSocket connections with reqwest"
 readme = "README.md"
 homepage = "https://github.com/jgraef/reqwest-websocket"
