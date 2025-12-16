@@ -338,16 +338,101 @@ impl Sink<Message> for WebSocket {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use futures_util::{SinkExt, TryStreamExt};
     use reqwest::Client;
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
+    use crate::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
+
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
-    use super::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
+    #[cfg(not(target_arch = "wasm32"))]
+    #[derive(Debug)]
+    pub struct TestServer {
+        shutdown_sender: Option<tokio::sync::oneshot::Sender<()>>,
+        url: String,
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    impl TestServer {
+        pub async fn new() -> Self {
+            async fn handle_connection(mut socket: axum::extract::ws::WebSocket) {
+                while let Some(message) = socket.recv().await {
+                    match message {
+                        Ok(message) => match &message {
+                            axum::extract::ws::Message::Text(_)
+                            | axum::extract::ws::Message::Binary(_) => {
+                                if let Err(error) = socket.send(message).await {
+                                    eprintln!("server/send: {error}");
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        },
+                        Err(error) => {
+                            eprintln!("server/recv: {error}");
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let (shutdown_sender, shutdown_receiver) = tokio::sync::oneshot::channel();
+            let listener = tokio::net::TcpListener::bind(("localhost", 0))
+                .await
+                .unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let app = axum::Router::new().route(
+                "/",
+                axum::routing::any(|ws: axum::extract::ws::WebSocketUpgrade| async move {
+                    ws.on_upgrade(handle_connection)
+                }),
+            );
+            let _join_handle = tokio::spawn(async move {
+                axum::serve(listener, app)
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown_receiver.await;
+                    })
+                    .await
+                    .unwrap();
+            });
+            Self {
+                shutdown_sender: Some(shutdown_sender),
+                url: format!("http://localhost:{port}/"),
+            }
+        }
+
+        pub fn url(&self) -> &str {
+            &self.url
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    impl Drop for TestServer {
+        fn drop(&mut self) {
+            if let Some(shutdown_sender) = self.shutdown_sender.take() {
+                println!("Shutting down server");
+                let _ = shutdown_sender.send(());
+            }
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub struct TestServer;
+
+    #[cfg(target_arch = "wasm32")]
+    impl TestServer {
+        pub async fn new() -> Self {
+            Self
+        }
+
+        pub fn url(&self) -> &str {
+            "ws://echo.websocket.org/"
+        }
+    }
 
     async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
@@ -370,8 +455,10 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_with_request_builder() {
+        let echo = TestServer::new().await;
+
         let websocket = Client::default()
-            .get("https://echo.websocket.org/")
+            .get(echo.url())
             .upgrade()
             .send()
             .await
@@ -386,12 +473,15 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_shorthand() {
-        let websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        let echo = TestServer::new().await;
+
+        let websocket = websocket(echo.url()).await.unwrap();
         test_websocket(websocket).await;
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    #[ignore = "test server doesn't support tls"]
     async fn test_with_ws_scheme() {
         let websocket = websocket("wss://echo.websocket.org/").await.unwrap();
 
@@ -401,7 +491,9 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_close() {
-        let websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        let echo = TestServer::new().await;
+
+        let websocket = websocket(echo.url()).await.unwrap();
         websocket
             .close(CloseCode::Normal, Some("test"))
             .await
@@ -411,7 +503,9 @@ pub mod tests {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_send_close_frame() {
-        let mut websocket = websocket("https://echo.websocket.org/").await.unwrap();
+        let echo = TestServer::new().await;
+
+        let mut websocket = websocket(echo.url()).await.unwrap();
         websocket
             .send(Message::Close {
                 code: CloseCode::Normal,
@@ -434,12 +528,14 @@ pub mod tests {
         assert!(close_received, "No close frame was received");
     }
 
+    /* todo: with our own test server we can have it send the selected protocol
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    #[ignore = "https://echo.websocket.org/ ignores subprotocols"]
     async fn test_with_subprotocol() {
+        let echo = TestServer::new().await;
+
         let websocket = Client::default()
-            .get("https://echo.websocket.org/")
+            .get(echo.url())
             .upgrade()
             .protocols(["chat"])
             .send()
@@ -452,7 +548,7 @@ pub mod tests {
         assert_eq!(websocket.protocol(), Some("chat"));
 
         test_websocket(websocket).await;
-    }
+    } */
 
     #[test]
     fn close_code_from_u16() {
