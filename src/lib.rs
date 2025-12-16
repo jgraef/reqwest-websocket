@@ -360,6 +360,23 @@ mod tests {
     impl TestServer {
         pub async fn new() -> Self {
             async fn handle_connection(mut socket: axum::extract::ws::WebSocket) {
+                if let Some(protocol) = socket.protocol() {
+                    if let Ok(protocol) = protocol.to_str() {
+                        println!("server/protocol: {protocol:?}");
+                        if let Err(error) = socket
+                            .send(axum::extract::ws::Message::Text(
+                                format!("protocol: {protocol}").into(),
+                            ))
+                            .await
+                        {
+                            eprintln!("server/send: {error}");
+                            return;
+                        }
+                    } else {
+                        println!("server/protocol: could not convert to utf-8");
+                    }
+                }
+
                 while let Some(message) = socket.recv().await {
                     match message {
                         Ok(message) => match &message {
@@ -388,9 +405,11 @@ mod tests {
             let app = axum::Router::new().route(
                 "/",
                 axum::routing::any(|ws: axum::extract::ws::WebSocketUpgrade| async move {
-                    ws.on_upgrade(handle_connection)
+                    ws.protocols(["chat"]).on_upgrade(handle_connection)
                 }),
             );
+
+            // todo: I think we'll need to spawn this on a proper thread (for which we create a separate runtime) for this to be shared across multiple tests
             let _join_handle = tokio::spawn(async move {
                 axum::serve(listener, app)
                     .with_graceful_shutdown(async move {
@@ -528,13 +547,12 @@ mod tests {
         assert!(close_received, "No close frame was received");
     }
 
-    /* todo: with our own test server we can have it send the selected protocol
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
     async fn test_with_subprotocol() {
         let echo = TestServer::new().await;
 
-        let websocket = Client::default()
+        let mut websocket = Client::default()
             .get(echo.url())
             .upgrade()
             .protocols(["chat"])
@@ -547,8 +565,16 @@ mod tests {
 
         assert_eq!(websocket.protocol(), Some("chat"));
 
-        test_websocket(websocket).await;
-    } */
+        let message = websocket.try_next().await.unwrap().unwrap();
+        match message {
+            Message::Text(s) => {
+                assert_eq!(s, "protocol: chat");
+            }
+            _ => {
+                panic!("Expected text message with selected protocol");
+            }
+        }
+    }
 
     #[test]
     fn close_code_from_u16() {
