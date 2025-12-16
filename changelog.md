@@ -2,6 +2,10 @@
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
+ - Update `tungstenite` to 0.28
+ - Update `async-tungstenite` to 0.32
+ - tests: use local test server for native tests
+
 # 0.5.1
 
  - Update `tungstenite` to 0.27
@@ -43,7 +47,7 @@ The current changes need a *patch* version bump.
   - add `serde` and `serde_json` optional dependencies.
   - add `Message::*_from_json` and `Method::json` methods.
   - add `Error::Json(serde_json::Error)` variant. *breaking*
-   - this would normally break semver-compatibility, but it's behind a feature flag that wasn't available before. 
+   - this would normally break semver-compatibility, but it's behind a feature flag that wasn't available before.
 
 - close: (#11)
   - add `protocol::CloseReason`.
