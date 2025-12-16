@@ -24,28 +24,51 @@ json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 # pin version, see https://github.com/jgraef/reqwest-websocket/pull/33
-futures-util = { version = ">=0.3.31", default-features = false, features = ["sink"] }
+futures-util = { version = ">=0.3.31", default-features = false, features = [
+    "sink",
+] }
 reqwest = { version = "0.12", default-features = false }
 thiserror = "2"
 tracing = "0.1"
 serde = { version = "1.0", default-features = false, optional = true }
-serde_json = { version = "1.0", default-features = false, optional = true, features = ["alloc"] }
+serde_json = { version = "1.0", default-features = false, optional = true, features = [
+    "alloc",
+] }
 bytes = "1.10.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-async-tungstenite = { version = "0.31.0", default-features = false, features = ["futures-03-sink"] }
-tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
-tungstenite = { version = "0.27", default-features = false, features = ["handshake"] }
+async-tungstenite = { version = "0.32.0", default-features = false, features = [
+    "futures-03-sink",
+] }
+tokio-util = { version = "0.7", default-features = false, features = [
+    "compat",
+] }
+tungstenite = { version = "0.28", default-features = false, features = [
+    "handshake",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features = ["WebSocket", "CloseEvent", "ErrorEvent", "Event", "MessageEvent", "BinaryType"] }
-tokio = { version = "1", default-features = false, features = ["sync", "macros"] }
+web-sys = { version = "0.3", features = [
+    "WebSocket",
+    "CloseEvent",
+    "ErrorEvent",
+    "Event",
+    "MessageEvent",
+    "BinaryType",
+] }
+tokio = { version = "1", default-features = false, features = [
+    "sync",
+    "macros",
+] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
 reqwest = { version = "0.12", features = ["default-tls"] }
 serde = { version = "1.0", features = ["derive"] }
-futures-util = { version = "0.3", default-features = false, features = ["sink", "alloc"] }
+futures-util = { version = "0.3", default-features = false, features = [
+    "sink",
+    "alloc",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
