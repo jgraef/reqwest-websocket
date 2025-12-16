@@ -7,7 +7,7 @@
 
 Extension for [`reqwest`][2] to allow [websocket][1] connections.
 
-This crate contains the extension trait [`RequestBuilderExt`][4], which adds an
+This crate contains the extension trait [`Upgrade`][4], which adds an
 `upgrade` method to `reqwest::RequestBuilder` that prepares the HTTP request to
 upgrade the connection to a WebSocket. After you call `upgrade()`, you can send
 your upgraded request as usual with `send()`, which will return an
@@ -22,7 +22,7 @@ For a full example take a look at [`hello_world.rs`](examples/hello_world.rs).
 
 ```rust
 // Extends the `reqwest::RequestBuilder` to allow WebSocket upgrades.
-use reqwest_websocket::RequestBuilderExt;
+use reqwest_websocket::Upgrade;
 
 // Creates a GET request, upgrades and sends it.
 let response = Client::default()
@@ -56,4 +56,4 @@ request.
 [1]: https://en.wikipedia.org/wiki/WebSocket
 [2]: https://docs.rs/reqwest/latest/reqwest/index.html
 [3]: https://docs.rs/web-sys/latest/web_sys/struct.WebSocket.html
-[4]: https://docs.rs/reqwest-websocket/0.1.0/reqwest_websocket/trait.RequestBuilderExt.html
+[4]: https://docs.rs/reqwest-websocket/latest/reqwest_websocket/trait.Upgrade.html
