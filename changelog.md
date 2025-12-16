@@ -1,10 +1,13 @@
-# Upcoming Version: 0.5.2
+# Upcoming Version: 0.6
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
  - Update `tungstenite` to 0.28
  - Update `async-tungstenite` to 0.32
  - tests: use local test server for native tests
+ - Add `Client` and `RequestBuilder` traits that abstract over the specific implementation of these types.
+   Rename `RequestBuilderExt` to `Upgrade`. `Upgrade` is a blanket extension for anything that implements our `RequestBuilder` trait.
+ - Add support for `request_middleware` behind `middleware` flag.
 
 # 0.5.1
 

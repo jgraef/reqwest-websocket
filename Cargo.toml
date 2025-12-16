@@ -1,6 +1,6 @@
 [package]
 name = "reqwest-websocket"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 authors = ["Janosch Gräf <janosch.graef@gmail.com>"]
 description = "WebSocket connections with reqwest"
