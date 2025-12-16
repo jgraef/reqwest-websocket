@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
 use reqwest::Client;
-use reqwest_websocket::{Error, Message, RequestBuilderExt};
+use reqwest_websocket::{Error, Message, Upgrade};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {

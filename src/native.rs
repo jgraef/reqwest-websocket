@@ -2,18 +2,21 @@ use std::borrow::Cow;
 
 use crate::{
     protocol::{CloseCode, Message},
-    Error,
+    Client, Error, RequestBuilder,
 };
 use reqwest::{
     header::{HeaderName, HeaderValue},
-    RequestBuilder, Response, StatusCode, Version,
+    Response, StatusCode, Version,
 };
 use tungstenite::protocol::WebSocketConfig;
 
-pub async fn send_request(
-    request_builder: RequestBuilder,
+pub async fn send_request<R>(
+    request_builder: R,
     protocols: &[String],
-) -> Result<WebSocketResponse, Error> {
+) -> Result<WebSocketResponse, Error>
+where
+    R: RequestBuilder,
+{
     let (client, request_result) = request_builder.build_split();
     let mut request = request_result?;
 

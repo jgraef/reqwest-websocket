@@ -19,7 +19,7 @@
 //! #
 //! # async fn run() -> Result<(), Error> {
 //! // Extends the `reqwest::RequestBuilder` to allow WebSocket upgrades.
-//! use reqwest_websocket::RequestBuilderExt;
+//! use reqwest_websocket::Upgrade;
 //!
 //! // Creates a GET request, upgrades and sends it.
 //! let response = Client::default()
@@ -49,6 +49,8 @@
 
 #[cfg(feature = "json")]
 mod json;
+#[cfg(feature = "middleware")]
+mod middleware;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 mod protocol;
@@ -56,6 +58,7 @@ mod protocol;
 mod wasm;
 
 use std::{
+    future::Future,
     pin::Pin,
     task::{ready, Context, Poll},
 };
@@ -66,7 +69,7 @@ pub use crate::native::HandshakeError;
 pub use crate::protocol::{CloseCode, Message};
 pub use bytes::Bytes;
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
-use reqwest::{Client, ClientBuilder, IntoUrl, RequestBuilder};
+use reqwest::IntoUrl;
 
 /// Errors returned by `reqwest_websocket`.
 #[derive(Debug, thiserror::Error)]
@@ -91,10 +94,14 @@ pub enum Error {
     WebSys(#[from] wasm::WebSysError),
 
     /// Error during serialization/deserialization.
-    #[error("serde_json error")]
     #[cfg(feature = "json")]
     #[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+    #[error("serde_json error")]
     Json(#[from] serde_json::Error),
+
+    #[cfg(feature = "middleware")]
+    #[error("reqwest_middleware error")]
+    ReqwestMiddleware(#[from] reqwest_middleware::Error),
 }
 
 /// Opens a `WebSocket` connection at the specified `URL`.
@@ -105,7 +112,7 @@ pub enum Error {
 /// [`Request`]: reqwest::Request
 /// [`Response`]: reqwest::Response
 pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
-    builder_http1_only(Client::builder())
+    builder_http1_only(reqwest::Client::builder())
         .build()?
         .get(url)
         .upgrade()
@@ -117,42 +124,89 @@ pub async fn websocket(url: impl IntoUrl) -> Result<WebSocket, Error> {
 
 #[inline]
 #[cfg(not(target_arch = "wasm32"))]
-fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
+fn builder_http1_only(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     builder.http1_only()
 }
 
 #[inline]
 #[cfg(target_arch = "wasm32")]
-fn builder_http1_only(builder: ClientBuilder) -> ClientBuilder {
+fn builder_http1_only(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     builder
 }
 
-/// Trait that extends [`reqwest::RequestBuilder`] with an `upgrade` method.
-pub trait RequestBuilderExt {
+/// A generic client.
+///
+/// This is needed by [`RequestBuilder`] to be generic over the specific implementation of a client.
+/// Its only requirement is to be able to execute [`reqwest::Request`]s.
+///
+/// This is implemented for [`reqwest::Client`] and [`reqwest_middleware::ClientWithMiddleware`] (with `middleware` feature).
+/// It provides a single interface for executing a [`reqwest::Request`].
+pub trait Client {
+    fn execute(
+        &self,
+        request: reqwest::Request,
+    ) -> impl Future<Output = Result<reqwest::Response, Error>> + '_;
+}
+
+impl Client for reqwest::Client {
+    async fn execute(&self, request: reqwest::Request) -> Result<reqwest::Response, Error> {
+        self.execute(request).await.map_err(Into::into)
+    }
+}
+
+/// A generic request builder.
+///
+/// This is needed by [`Upgraded`] to be generic over the specific implementation of a request (and client).
+/// Its only requirements are that it provides the specific client type, and can build itself into a client and a [`reqwest::Request`].
+pub trait RequestBuilder {
+    type Client: Client;
+
+    fn build_split(self) -> (Self::Client, Result<reqwest::Request, Error>);
+}
+
+impl RequestBuilder for reqwest::RequestBuilder {
+    type Client = reqwest::Client;
+
+    fn build_split(self) -> (Self::Client, Result<reqwest::Request, Error>) {
+        let (client, request) = reqwest::RequestBuilder::build_split(self);
+        (client, request.map_err(Into::into))
+    }
+}
+
+/// Extension trait for requests builders that can be upgraded to a websocket connection.
+///
+/// This is automatically implemented for anything that implements our [`RequestBuilder`] trait.
+pub trait Upgrade: Sized {
     /// Upgrades the [`RequestBuilder`] to perform a `WebSocket` handshake.
     ///
     /// This returns a wrapped type, so you must do this after you set up
     /// your request, and just before sending the request.
-    fn upgrade(self) -> UpgradedRequestBuilder;
+    fn upgrade(self) -> Upgraded<Self>;
 }
 
-impl RequestBuilderExt for RequestBuilder {
-    fn upgrade(self) -> UpgradedRequestBuilder {
-        UpgradedRequestBuilder::new(self)
+impl<R> Upgrade for R
+where
+    R: RequestBuilder,
+{
+    fn upgrade(self) -> Upgraded<Self> {
+        Upgraded::new(self)
     }
 }
 
 /// Wrapper for a [`reqwest::RequestBuilder`] that performs the
 /// `WebSocket` handshake when sent.
-pub struct UpgradedRequestBuilder {
-    inner: RequestBuilder,
+pub struct Upgraded<R> {
+    inner: R,
     protocols: Vec<String>,
     #[cfg(not(target_arch = "wasm32"))]
     web_socket_config: Option<tungstenite::protocol::WebSocketConfig>,
 }
 
-impl UpgradedRequestBuilder {
-    pub(crate) fn new(inner: RequestBuilder) -> Self {
+impl<R> Upgraded<R>
+where
+    R: RequestBuilder,
+{
+    pub(crate) fn new(inner: R) -> Self {
         Self {
             inner,
             protocols: vec![],
@@ -181,7 +235,10 @@ impl UpgradedRequestBuilder {
         let inner = native::send_request(self.inner, &self.protocols).await?;
 
         #[cfg(target_arch = "wasm32")]
-        let inner = wasm::WebSysWebSocketStream::new(self.inner.build()?, &self.protocols).await?;
+        let inner = {
+            let request = self.inner.build_split().1?;
+            wasm::WebSysWebSocketStream::new(request, &self.protocols).await?
+        };
 
         Ok(UpgradeResponse {
             inner,
@@ -344,7 +401,7 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     use wasm_bindgen_test::wasm_bindgen_test;
 
-    use crate::{websocket, CloseCode, Message, RequestBuilderExt, WebSocket};
+    use crate::{websocket, CloseCode, Message, Upgrade, WebSocket};
 
     #[cfg(target_arch = "wasm32")]
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
@@ -463,7 +520,7 @@ mod tests {
         }
     }
 
-    async fn test_websocket(mut websocket: WebSocket) {
+    pub async fn test_websocket(mut websocket: WebSocket) {
         let text = "Hello, World!";
         websocket.send(Message::Text(text.into())).await.unwrap();
 
