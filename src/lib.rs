@@ -353,7 +353,8 @@ mod tests {
     #[derive(Debug)]
     pub struct TestServer {
         shutdown_sender: Option<tokio::sync::oneshot::Sender<()>>,
-        url: String,
+        http_url: String,
+        ws_url: String,
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -420,12 +421,17 @@ mod tests {
             });
             Self {
                 shutdown_sender: Some(shutdown_sender),
-                url: format!("http://localhost:{port}/"),
+                http_url: format!("http://localhost:{port}/"),
+                ws_url: format!("ws://localhost:{port}/"),
             }
         }
 
-        pub fn url(&self) -> &str {
-            &self.url
+        pub fn http_url(&self) -> &str {
+            &self.http_url
+        }
+
+        pub fn ws_url(&self) -> &str {
+            &self.ws_url
         }
     }
 
@@ -448,8 +454,12 @@ mod tests {
             Self
         }
 
-        pub fn url(&self) -> &str {
-            "ws://echo.websocket.org/"
+        pub fn http_url(&self) -> &str {
+            "https://echo.websocket.org/"
+        }
+
+        pub fn ws_url(&self) -> &str {
+            "wss://echo.websocket.org/"
         }
     }
 
@@ -477,7 +487,7 @@ mod tests {
         let echo = TestServer::new().await;
 
         let websocket = Client::default()
-            .get(echo.url())
+            .get(echo.http_url())
             .upgrade()
             .send()
             .await
@@ -494,15 +504,15 @@ mod tests {
     async fn test_shorthand() {
         let echo = TestServer::new().await;
 
-        let websocket = websocket(echo.url()).await.unwrap();
+        let websocket = websocket(echo.http_url()).await.unwrap();
         test_websocket(websocket).await;
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
-    #[ignore = "test server doesn't support tls"]
     async fn test_with_ws_scheme() {
-        let websocket = websocket("wss://echo.websocket.org/").await.unwrap();
+        let echo = TestServer::new().await;
+        let websocket = websocket(echo.ws_url()).await.unwrap();
 
         test_websocket(websocket).await;
     }
@@ -512,7 +522,7 @@ mod tests {
     async fn test_close() {
         let echo = TestServer::new().await;
 
-        let websocket = websocket(echo.url()).await.unwrap();
+        let websocket = websocket(echo.http_url()).await.unwrap();
         websocket
             .close(CloseCode::Normal, Some("test"))
             .await
@@ -524,7 +534,7 @@ mod tests {
     async fn test_send_close_frame() {
         let echo = TestServer::new().await;
 
-        let mut websocket = websocket(echo.url()).await.unwrap();
+        let mut websocket = websocket(echo.http_url()).await.unwrap();
         websocket
             .send(Message::Close {
                 code: CloseCode::Normal,
@@ -549,11 +559,15 @@ mod tests {
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
     #[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        ignore = "echo.websocket.org ignores subprotocols"
+    )]
     async fn test_with_subprotocol() {
         let echo = TestServer::new().await;
 
         let mut websocket = Client::default()
-            .get(echo.url())
+            .get(echo.http_url())
             .upgrade()
             .protocols(["chat"])
             .send()
