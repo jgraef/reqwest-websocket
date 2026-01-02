@@ -27,7 +27,7 @@ json = ["dep:serde", "dep:serde_json"]
 futures-util = { version = ">=0.3.31", default-features = false, features = [
     "sink",
 ] }
-reqwest = { version = "0.12", default-features = false }
+reqwest = { version = "0.13", default-features = false }
 thiserror = "2"
 tracing = "0.1"
 serde = { version = "1.0", default-features = false, optional = true }
@@ -62,7 +62,7 @@ tokio = { version = "1", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["default-tls"] }
+reqwest = { version = "0.13", features = ["default-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 futures-util = { version = "0.3", default-features = false, features = [
     "sink",
