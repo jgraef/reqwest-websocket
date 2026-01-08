@@ -1,6 +1,6 @@
 [package]
 name = "reqwest-websocket"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 authors = ["Janosch Gräf <janosch.graef@gmail.com>"]
 description = "WebSocket connections with reqwest"
@@ -20,7 +20,10 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+default = []
+full = ["json", "middleware"]
 json = ["dep:serde", "dep:serde_json"]
+middleware = ["dep:reqwest-middleware"]
 
 [dependencies]
 # pin version, see https://github.com/jgraef/reqwest-websocket/pull/33
@@ -35,6 +38,7 @@ serde_json = { version = "1.0", default-features = false, optional = true, featu
     "alloc",
 ] }
 bytes = "1.10.1"
+reqwest-middleware = { version = "0.4.2", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-tungstenite = { version = "0.32", default-features = false, features = [
@@ -68,6 +72,8 @@ futures-util = { version = "0.3", default-features = false, features = [
     "sink",
     "alloc",
 ] }
+async-trait = "0.1.89"
+http = "1.4.0"
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
