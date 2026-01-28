@@ -1,7 +1,8 @@
-# Upcoming Version: 0.5.2
+# Upcoming Version: 0.6
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
 
+ - Update `reqwest` to 0.13
  - Update `tungstenite` to 0.28
  - Update `async-tungstenite` to 0.32
  - tests: use local test server for native tests
