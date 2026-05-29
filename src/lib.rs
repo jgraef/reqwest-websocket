@@ -247,6 +247,34 @@ where
             web_socket_config: self.web_socket_config,
         })
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn build_split(self) -> Result<(Upgraded<R::Client>, reqwest::Request), Error> {
+        let (client, request_result) = self.inner.build_split();
+        let request = request_result?;
+        let client = Upgraded {
+            inner: client,
+            protocols: self.protocols,
+            web_socket_config: self.web_socket_config,
+        };
+        Ok((client, request))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<C> Upgraded<C>
+where
+    C: Client,
+{
+    pub async fn execute(self, request: reqwest::Request) -> Result<UpgradeResponse, Error> {
+        let inner = native::execute(self.inner, request, &self.protocols).await?;
+
+        Ok(UpgradeResponse {
+            inner,
+            protocols: self.protocols,
+            web_socket_config: self.web_socket_config,
+        })
+    }
 }
 
 /// The server's response to the `WebSocket` upgrade request.

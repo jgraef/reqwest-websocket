@@ -18,8 +18,19 @@ where
     R: RequestBuilder,
 {
     let (client, request_result) = request_builder.build_split();
-    let mut request = request_result?;
+    let request = request_result?;
 
+    execute::<R::Client>(client, request, protocols).await
+}
+
+pub async fn execute<C>(
+    client: C,
+    mut request: reqwest::Request,
+    protocols: &[String],
+) -> Result<WebSocketResponse, Error>
+where
+    C: Client,
+{
     // change the scheme from wss? to https?
     let url = request.url_mut();
     match url.scheme() {
