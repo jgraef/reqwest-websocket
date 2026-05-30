@@ -4,7 +4,9 @@ use reqwest_websocket::{Error, Message, Upgrade};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
-    let websocket = Client::default()
+    let websocket = Client::builder()
+        .http1_only()
+        .build()?
         .get("wss://echo.websocket.org/")
         .upgrade()
         .send()
