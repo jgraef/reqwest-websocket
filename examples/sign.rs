@@ -6,10 +6,17 @@ use reqwest_websocket::{Error, Message, Upgrade};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
-    let request_builder = reqwest::Client::builder()
-        .http1_only()
-        .build()?
-        .get("wss://echo.websocket.org/");
+    // this is a bit annoying, but we only need to this if we want to build for wasm and native, and we need a RequestBuilder
+    #[allow(unused_mut)]
+    let mut client_builder = reqwest::Client::builder();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        client_builder = client_builder.http1_only();
+    }
+    let client = client_builder.build()?;
+
+    // create RequestBuilder
+    let request_builder = client.get("wss://echo.websocket.org/");
 
     // wrap it in SigningRequestBuilder
     let signing_request_builder = SigningRequestBuilder(request_builder);

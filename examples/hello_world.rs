@@ -1,18 +1,9 @@
 use futures_util::{SinkExt, StreamExt, TryStreamExt};
-use reqwest::Client;
-use reqwest_websocket::{Error, Message, Upgrade};
+use reqwest_websocket::{Error, Message};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
-    let websocket = Client::builder()
-        .http1_only()
-        .build()?
-        .get("wss://echo.websocket.org/")
-        .upgrade()
-        .send()
-        .await?
-        .into_websocket()
-        .await?;
+    let websocket = reqwest_websocket::websocket("wss://echo.websocket.org/").await?;
 
     let (mut tx, mut rx) = websocket.split();
 
