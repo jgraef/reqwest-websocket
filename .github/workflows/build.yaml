@@ -48,6 +48,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: wasm-pack test --chrome --headless -- --verbose --all-features
 
+      - name: Run Cargo:doc
+        run: cargo doc --no-deps --all-features
+
       - name: Check Semver
         if: matrix.os == 'ubuntu-latest'
         uses: obi1kenobi/cargo-semver-checks-action@v2
