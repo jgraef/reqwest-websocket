@@ -327,8 +327,8 @@ impl WebSocket {
     ///
     /// # WASM
     ///
-    /// On wasm `code` must be [`CloseCode::Normal`], [`CloseCode::Iana(_)`],
-    /// or [`CloseCode::Library(_)`]. Furthermore `reason` must be at most 123
+    /// On wasm `code` must be [`CloseCode::Normal`], [`CloseCode::Iana`],
+    /// or [`CloseCode::Library`]. Furthermore `reason` must be at most 123
     /// bytes long. Otherwise the call to [`close`][Self::close] will fail.
     pub async fn close(self, code: CloseCode, reason: Option<&str>) -> Result<(), Error> {
         #[cfg(not(target_arch = "wasm32"))]
