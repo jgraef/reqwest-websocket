@@ -1,6 +1,11 @@
-# Upcoming Version: 0.6
+# Upcoming Version: 0.7.0
 
 Document new features here. Document whether your changes are *breaking* semver-compatibility.
+
+ - Update `tungstenite` to 0.30
+ - Update `async-tungstenite` to 0.35
+
+# 0.6.0
 
  - Update `reqwest` to 0.13
  - Update `tungstenite` to 0.28
